@@ -1,0 +1,44 @@
+# Build output and local dependencies
+artifacts/
+**/bin/
+**/obj/
+.vs/
+**/__pycache__/
+**/.testdeps/
+AwgPrototype/toolchain/
+AwgPrototype/engine/
+AwgPrototype/manager-bin/
+
+# VPN profiles, credentials and personal exports
+*.conf
+*.conf.*
+*.dpapi
+.env
+.env.*
+*.pfx
+*.p12
+*.pem
+*.key
+*.csv
+/VpnMonitor-settings*.json
+/settings*.json
+
+# Local diagnostics and deployment reports
+*.log
+*.bak
+AwgPrototype/*_TEST.json
+AwgPrototype/*_RESULT.json
+AwgPrototype/SYSTEM_VALIDATION.json
+AwgPrototype/INSTALLED_SECURITY.json
+AwgPrototype/MANAGER_INSTALL.json
+AwgPrototype/SERVICE_EVENTS.json
+AwgPrototype/*.txt
+AwgPrototype/Test-*.ps1
+AwgPrototype/Diagnose-*.ps1
+AwgPrototype/Read-EngineLog.ps1
+# Machine-specific diagnostics; keep reusable build/install scripts
+AwgPrototype/*.ps1
+!AwgPrototype/Build-Engine.ps1
+!AwgPrototype/Install-Prototype.ps1
+!AwgPrototype/Install-Manager.ps1
+!AwgPrototype/Prepare-Engine.ps1
