@@ -54,6 +54,8 @@ public partial class AwgStatusWindow : Window
                 UseShellExecute = true,
                 WorkingDirectory = System.IO.Path.GetDirectoryName(path)!
             };
+            startInfo.ArgumentList.Add("--theme");
+            startInfo.ArgumentList.Add(ThemeService.CurrentTheme);
             using var process = System.Diagnostics.Process.Start(startInfo);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)

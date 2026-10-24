@@ -135,6 +135,7 @@
                   </ComboBox>
                   <TextBlock Margin="28,2,0,0" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="Клиенты для наблюдения выбираются через контекстное меню или карточку клиента." />
                   <Button x:Name="TestNotificationButton" Content="Проверить уведомление Windows" Click="TestNotification_Click" HorizontalAlignment="Left" Padding="12,7" Margin="0,16,0,8"/>
+                  <Button x:Name="MonitoringRulesButton" Content="Задержки, тишина и обслуживание групп…" Click="MonitoringRules_Click" HorizontalAlignment="Left" Padding="12,7" Margin="0,0,0,10"/>
                   <TextBlock x:Name="TestNotificationText" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="Отправляет одно тестовое сообщение без изменения состояния клиентов."/>
                 </StackPanel>
               </StackPanel>
@@ -146,6 +147,7 @@
             <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
               <StackPanel>
                 <CheckBox x:Name="ActiveChecksEnabledBox" Content="Проверять VPN IP клиентов с этого компьютера" Margin="0,2,0,8" />
+                <Button x:Name="MonitoringProfilesButton" Content="Профили TCP-сервисов…" Click="MonitoringProfiles_Click" HorizontalAlignment="Left" Padding="12,7" Margin="0,0,0,14"/>
                 <CheckBox x:Name="ActiveChecksWatchedOnlyBox" Content="Только клиенты с включёнными уведомлениями" Margin="0,0,0,8" />
                 <TextBlock Text="Интервал проверки, сек. (2–300)" FontWeight="SemiBold" />
                 <TextBox x:Name="ActiveCheckSecondsBox" Width="90" Height="34" HorizontalAlignment="Left" Padding="8,5" Margin="0,6,0,10" />

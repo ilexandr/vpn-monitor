@@ -15,14 +15,17 @@ public partial class SettingsWindow : Window
     private readonly AutostartService _autostartService = new();
     private readonly RadminService _radminService = new();
     private readonly Action? _testNotification;
+    private readonly Action<Window, int>? _openMonitoring;
     private bool _syncingNavigation;
     private StackPanel[] Sections => [SettingsPage0, SettingsPage1, SettingsPage2, SettingsPage3, SettingsPage4, SettingsPage5, SettingsPage6];
 
-    public SettingsWindow(SettingsService settingsService, ClientSettings settings, Action? testNotification = null)
+    public SettingsWindow(SettingsService settingsService, ClientSettings settings, Action? testNotification = null, Action<Window, int>? openMonitoring = null)
     {
         _testNotification = testNotification;
+        _openMonitoring = openMonitoring;
         InitializeComponent();
         TestNotificationButton.IsEnabled = testNotification is not null;
+        MonitoringProfilesButton.IsEnabled = MonitoringRulesButton.IsEnabled = openMonitoring is not null;
         _settingsService = settingsService;
         _settings = settings;
         SettingsNavigation.SelectedIndex = 0;
@@ -43,6 +46,8 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex) { TestNotificationText.Text = "Не удалось отправить тестовое уведомление: " + ex.Message; }
     }
+    private void MonitoringProfiles_Click(object sender, RoutedEventArgs e) => _openMonitoring?.Invoke(this, 1);
+    private void MonitoringRules_Click(object sender, RoutedEventArgs e) => _openMonitoring?.Invoke(this, 2);
 
     private void LoadForm(ClientSettings settings)
     {

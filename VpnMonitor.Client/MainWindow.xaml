@@ -509,6 +509,17 @@
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
+                            <DataGridTemplateColumn x:Name="ServiceColumn" Header="Сервисы" Width="110" Visibility="Collapsed" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                    <TextBlock Text="{Binding Services.Text, TargetNullValue=Не проверялись}" ToolTip="{Binding Services.Details}" VerticalAlignment="Center">
+                                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+                                            <Style.Triggers><DataTrigger Binding="{Binding Services.Healthy}" Value="True"><Setter Property="Foreground" Value="{DynamicResource OnlineBrush}"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding Services.Healthy}" Value="False"><Setter Property="Foreground" Value="{DynamicResource ErrorTextBrush}"/></DataTrigger></Style.Triggers>
+                                        </Style></TextBlock.Style>
+                                    </TextBlock>
+                                </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
                             <DataGridTemplateColumn x:Name="VpnIpColumn" Header="VPN IP" Width="125" SortMemberPath="VpnIpSortKey">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

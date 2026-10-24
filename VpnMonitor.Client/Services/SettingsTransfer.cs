@@ -40,6 +40,7 @@ public static class SettingsTransfer
             CustomActionService.Validate(action);
         }
         ClientActionCatalog.Validate(settings.BuiltinActions);
+        MonitoringConfiguration.ValidateLists(settings);
         settings.ProtectedPassword = "";
         return settings;
     }

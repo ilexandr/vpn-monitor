@@ -43,6 +43,7 @@
                 <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="Template" Value="{StaticResource InputTemplate}"/>
+                <Style.Triggers><Trigger Property="AcceptsReturn" Value="True"><Setter Property="VerticalContentAlignment" Value="Top"/></Trigger></Style.Triggers>
             </Style>
             <Style TargetType="PasswordBox">
                 <Setter Property="Background" Value="{DynamicResource InputBackgroundBrush}"/>
@@ -352,6 +353,7 @@
             <Style TargetType="ListBox">
                 <Setter Property="Background" Value="{DynamicResource PanelBrush}"/>
                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
             </Style>
 
             <Style TargetType="DataGridColumnHeader">

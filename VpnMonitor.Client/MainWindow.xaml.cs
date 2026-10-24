@@ -72,6 +72,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = _settingsService.Load();
+        InitializeMonitoring();
         ThemeService.Apply(_settings.Theme);
         DataContext = _viewModel;
         PreviewKeyDown += (_, e) =>
@@ -85,7 +86,7 @@ public partial class MainWindow : Window
         _timer.Tick += async (_, _) => await RefreshDataAsync();
         _reachabilityTimer.Tick += async (_, _) => await RefreshReachabilityAsync();
         _peerHistory.Entries.CollectionChanged += (_, _) => _historyDirty = true;
-        _historySaveTimer.Tick += async (_, _) => await SaveHistoryAsync();
+        _historySaveTimer.Tick += async (_, _) => { await SaveHistoryAsync(); await SaveIncidentsAsync(); };
         _historySaveTimer.Start();
 
     }
@@ -122,6 +123,7 @@ public partial class MainWindow : Window
         UpdateSortIndicators();
         ApplyColumnVisibility();
         ConfigureTimer();
+        _servicesTimer.Start();
 
         try
         {
@@ -384,6 +386,7 @@ public partial class MainWindow : Window
             catch (Exception ex) { App.Log("Could not remove saved history archives.", ex); }
         }
         _historyDirty = true;
+        ConfigureMonitoring(scope);
     }
 
     private async Task SaveHistoryAsync()
@@ -425,9 +428,11 @@ public partial class MainWindow : Window
             if (_tunnelHealth.Observe(running, reachable))
             {
                 App.Log(_tunnelHealth.Text);
-                _trayIcon?.ShowBalloonTip(7000, "Общий туннель AWG", _tunnelHealth.Text,
+                if (!SuppressTunnelNotice()) _trayIcon?.ShowBalloonTip(7000, "Общий туннель AWG", _tunnelHealth.Text,
                     _tunnelHealth.IsDegraded ? System.Windows.Forms.ToolTipIcon.Warning : System.Windows.Forms.ToolTipIcon.Info);
             }
+            if (_tunnelHealth.IsDegraded)
+            { ObserveConnection(false, DateTimeOffset.Now); _incidents.InterruptClients(DateTimeOffset.Now); }
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { _tunnelHealth.Observe(true, null); App.Log("Tunnel health check unavailable.", ex); }
@@ -464,6 +469,8 @@ public partial class MainWindow : Window
             RestoreGroupSelection();
             ApplyReachabilityResults();
             if (_referenceServerAvailable == false) _viewModel.MarkAwgDataStale();
+            await ObserveMonitoringApiAsync();
+            if (connectionRevision != _connectionRevision || _allowExit) return;
 
             if (!_viewModel.HasError)
             {
@@ -568,6 +575,7 @@ public partial class MainWindow : Window
             }
             else
                 ProcessStatusNotifications(active: true);
+            ObservePeerIncidents();
             if (referenceRecovered) _ = RefreshDataAsync();
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -680,7 +688,8 @@ public partial class MainWindow : Window
 
     private bool OpenSettings()
     {
-        var dialog = OwnedWindowBehavior.Attach(new SettingsWindow(_settingsService, _settings, SendTestNotification), this);
+        var dialog = OwnedWindowBehavior.Attach(new SettingsWindow(_settingsService, _settings, SendTestNotification,
+            (owner, page) => ShowMonitoring(page, owner)), this);
 
         var result = dialog.ShowDialog() == true;
         if (result)
@@ -920,13 +929,18 @@ public partial class MainWindow : Window
         else
         {
             _settings.StatusNotificationPeerIds.RemoveAll(id => string.Equals(id, peer.Id, StringComparison.Ordinal));
+            _notificationPolicy.CancelPeer(peer.Id, DateTimeOffset.Now);
             ShowStatusHint($"🔕 {peer.Name}: уведомления отключены");
         }
 
         SaveSettings();
     }
 
-    private void ResetStatusNotificationSnapshot() => _statusTracker.Reset();
+    private void ResetStatusNotificationSnapshot()
+    {
+        _statusTracker.Reset();
+        _notificationPolicy.CancelPending("Наблюдение прервано; состояние неизвестно", DateTimeOffset.Now);
+    }
 
     private void ProcessStatusNotifications(bool active = false)
     {
@@ -935,43 +949,12 @@ public partial class MainWindow : Window
         {
             var changed = _statusTracker.Update(_viewModel.Peers, _settings,
                 active ? peer => peer.Reachability.IsReachable : peer => peer.AwgState.IsCurrent ? peer.IsOnline : null);
-            foreach (var peer in changed)
-                ShowPeerStatusNotification(peer);
+            QueuePeerNotifications(changed, active);
         }
         catch (Exception ex)
         {
             App.Log("Status notification processing failed. UI continues normally.", ex);
             ResetStatusNotificationSnapshot();
-        }
-    }
-
-    private void ShowPeerStatusNotification(Peer peer)
-    {
-        if (_trayIcon is null)
-            return;
-
-        var active = _settings.StatusNotificationSource == "active";
-        var online = active ? peer.Reachability.IsReachable == true : peer.IsOnline;
-        var title = online ? "VPN Monitor — Online" : "VPN Monitor — Offline";
-        var ip = string.IsNullOrWhiteSpace(peer.VpnIp) ? "" : $" ({peer.VpnIp})";
-        var status = active
-            ? (online ? "Клиент доступен (активная проверка)" : "Клиент не отвечает после 3 проверок")
-            : (online ? "Клиент появился в сети (AWG)" : "Клиент ушёл Offline (AWG)");
-        var message = $"{peer.Name}{ip}\n{status}";
-
-        try
-        {
-            _trayIcon.ShowBalloonTip(
-                4500,
-                title,
-                message,
-                online
-                    ? System.Windows.Forms.ToolTipIcon.Info
-                    : System.Windows.Forms.ToolTipIcon.Warning);
-        }
-        catch (Exception ex)
-        {
-            App.Log("Failed to show peer status notification.", ex);
         }
     }
 
@@ -1075,6 +1058,8 @@ public partial class MainWindow : Window
         var menu = new ContextMenu { PlacementTarget = MoreButton, Placement = PlacementMode.Bottom };
         AddActionMenuItem(menu, "Журнал приложения", () => Log_Click(this, new RoutedEventArgs()));
         AddActionMenuItem(menu, "Диагностика", () => ShowDiagnostics());
+        AddActionMenuItem(menu, "Мониторинг и правила", () => ShowMonitoring());
+        menu.Items.Add(SavedViewsMenu());
         AddActionMenuItem(menu, "Экспорт списка в CSV", () => ExportPeers_Click(this, new RoutedEventArgs()));
         menu.Items.Add(CreateMenuSeparator());
         AddActionMenuItem(menu, "Открыть Web", () => OpenVpnMonitorWeb_Click(this, new RoutedEventArgs()));
@@ -1656,6 +1641,10 @@ public partial class MainWindow : Window
         SaveWindowState();
         _historySaveTimer.Stop();
         SaveHistoryOnExit();
+        SaveIncidentsOnExit();
+        _servicesTimer.Stop();
+        _servicesCancellation.Cancel();
+        _servicesCancellation.Dispose();
         _timer.Stop();
         _reachabilityTimer.Stop();
         _reachabilityCancellation.Cancel();

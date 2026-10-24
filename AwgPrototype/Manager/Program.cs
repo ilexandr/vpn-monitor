@@ -20,17 +20,19 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        if(args.Length == 0)
+        if(args.Length == 0 || args.Length == 2 && args[0] == "--theme" && args[1] is "light" or "dark")
         {
             if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {
                 System.Windows.Forms.MessageBox.Show("Запустите панель через «Запуск от имени администратора». Обычный VPN Monitor не требует повышения прав.","VPN Monitor AWG");
                 return 10;
             }
-            System.Windows.Forms.Application.EnableVisualStyles();
-            using var form = new ManagerForm();
-            using var updater = new UpdateParticipant("Manager", () => form.BeginInvoke(new Action(() => form.Close())));
-            System.Windows.Forms.Application.Run(form);
+            var app = new VpnMonitor.Client.App(false);
+            app.InitializeComponent();
+            ThemeService.Apply(args.Length == 2 ? args[1] : new SettingsService().Load().Theme);
+            var window = new VpnMonitor.Client.AwgManagementWindow((action, argument) => Task.Run(() => Execute(action, argument)));
+            using var updater = new UpdateParticipant("Manager", () => window.Dispatcher.BeginInvoke(new Action(() => window.Close())));
+            app.Run(window);
             return 0;
         }
         if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt")) return 2;

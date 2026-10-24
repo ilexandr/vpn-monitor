@@ -10,13 +10,18 @@ public static class OwnedWindowBehavior
         child.Owner = owner;
         child.ShowInTaskbar = false;
         var restore = false;
-        child.Closing += (_, e) => restore = !e.Cancel && child.IsActive && CanRestore(owner);
+        var closingOwner = owner;
+        child.Closing += (_, e) =>
+        {
+            closingOwner = child.Owner ?? owner;
+            restore = !e.Cancel && child.IsActive && CanRestore(closingOwner);
+        };
         child.Closed += (_, _) =>
         {
             if (!restore) return;
-            owner.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
+            closingOwner.Dispatcher.BeginInvoke(DispatcherPriority.ContextIdle, new Action(() =>
             {
-                if (CanRestore(owner)) owner.Activate();
+                if (CanRestore(closingOwner)) closingOwner.Activate();
             }));
         };
         return child;

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.ComponentModel;
 using System.Net;
 using System.Text.Json.Serialization;
+using VpnMonitor.Client.Services;
 
 namespace VpnMonitor.Client.Models;
 
@@ -22,6 +23,13 @@ public sealed class Peer : INotifyPropertyChanged
         }
     }
     public event PropertyChangedEventHandler? PropertyChanged;
+    private ServiceSnapshot? _services;
+    [JsonIgnore]
+    public ServiceSnapshot? Services
+    {
+        get => _services;
+        set { _services = value; PropertyChanged?.Invoke(this, new(nameof(Services))); }
+    }
 
     [JsonPropertyName("id")]
     public string Id { get; set; } = "";

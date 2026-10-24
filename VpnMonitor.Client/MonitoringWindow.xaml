@@ -1,0 +1,111 @@
+<Window x:Class="VpnMonitor.Client.MonitoringWindow"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ Title="VPN Monitor — мониторинг" Width="1080" Height="760" MinWidth="860" MinHeight="560"
+ WindowStartupLocation="CenterOwner" Icon="Assets/AWG_Monitor.ico" Style="{StaticResource {x:Type Window}}">
+ <Grid Background="{DynamicResource AppBackgroundBrush}">
+  <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+  <Grid>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0" Padding="12,20">
+    <StackPanel><TextBlock Text="МОНИТОРИНГ" Foreground="{DynamicResource MutedBrush}" FontSize="11" FontWeight="Bold" Margin="12,0,0,16"/>
+     <ListBox x:Name="Navigation" SelectionChanged="Navigation_Changed" BorderThickness="0" Background="Transparent">
+      <ListBoxItem Content="Инциденты"/><ListBoxItem Content="Профили сервисов"/><ListBoxItem Content="Уведомления"/><ListBoxItem Content="Представления"/>
+     </ListBox>
+    </StackPanel>
+   </Border>
+   <Grid Grid.Column="1" Margin="22,20">
+    <Grid x:Name="IncidentsPage">
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <StackPanel><TextBlock Text="Инциденты" FontSize="23" FontWeight="SemiBold"/>
+      <TextBlock Text="API, VPN, клиенты и сервисы. Неизвестное состояние не считается подтверждённой недоступностью." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+      <TextBlock x:Name="IncidentSummary" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,12" TextWrapping="Wrap"/>
+     </StackPanel>
+     <DockPanel Grid.Row="1" Margin="0,0,0,10">
+      <CheckBox x:Name="OpenOnlyBox" Content="Только открытые" DockPanel.Dock="Right" Checked="IncidentFilter_Changed" Unchecked="IncidentFilter_Changed" VerticalAlignment="Center" Margin="10,0,0,0"/>
+      <TextBox x:Name="IncidentSearchBox" TextChanged="IncidentSearch_Changed" ToolTip="Поиск по всем словам" Height="34"/>
+     </DockPanel>
+     <DataGrid x:Name="IncidentsGrid" Grid.Row="2" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False" HeadersVisibility="Column">
+      <DataGrid.Columns>
+       <DataGridTextColumn Header="Начало" Binding="{Binding StartedText}" Width="120"/>
+       <DataGridTextColumn Header="Уровень" Binding="{Binding Level}" Width="110"/>
+       <DataGridTextColumn Header="Событие" Binding="{Binding Title}" Width="*" MinWidth="180"/>
+       <DataGridTextColumn Header="Длительность" Binding="{Binding DurationText}" Width="100"/>
+       <DataGridTextColumn Header="Завершение" Binding="{Binding EndedText}" Width="125"/>
+       <DataGridTextColumn Header="Результат" Binding="{Binding Result}" Width="150"/>
+      </DataGrid.Columns>
+     </DataGrid>
+     <StackPanel Grid.Row="3" Margin="0,12,0,0">
+      <TextBlock Text="Связанные сбои API и общей VPN-связи объединяются. Это вероятный уровень проблемы, а не доказательство причины. Сумма длительностей относится к событиям: они могут пересекаться. До 7 дней / 2000 событий; разрывы наблюдения отмечаются отдельно." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,0,0,10"/>
+      <WrapPanel><Button Content="Экспорт CSV" Click="ExportIncidents_Click" Padding="12,7" Margin="0,0,8,0"/>
+       <Button Content="Очистить завершённые" Click="ClearIncidents_Click" Padding="12,7"/>
+      </WrapPanel>
+     </StackPanel>
+    </Grid>
+    <Grid x:Name="ProfilesPage" Visibility="Collapsed">
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+     <StackPanel><TextBlock Text="Профили проверок сервисов" FontSize="23" FontWeight="SemiBold"/>
+      <CheckBox x:Name="ServicesEnabledBox" Content="Включить дополнительные проверки TCP-сервисов" Margin="0,12,0,8"/>
+      <WrapPanel><TextBlock Text="Параллельных запросов (1–16):" VerticalAlignment="Center"/><TextBox x:Name="ParallelBox" Width="55" Height="32" Margin="10,0,0,0"/></WrapPanel>
+      <TextBlock Text="До 128 TCP-запросов за цикл, таймаут 1 сек. Циклы не перекрываются. Приоритет: клиент → первая подходящая группа → все. Состояние компьютера и сервисов учитывается отдельно." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,10,0,12"/>
+     </StackPanel>
+     <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="190"/><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <DockPanel><WrapPanel DockPanel.Dock="Bottom" Margin="0,8,0,0"><Button Content="Добавить" Click="AddProfile_Click" Padding="10,6" Margin="0,0,6,6"/><Button Content="Удалить" Click="DeleteProfile_Click" Padding="10,6" Margin="0,0,6,6"/><Button Content="↑" Tag="-1" Click="MoveProfile_Click" Padding="10,6" Margin="0,0,6,6"/><Button Content="↓" Tag="1" Click="MoveProfile_Click" Padding="10,6" Margin="0,0,0,6"/></WrapPanel>
+       <ListBox x:Name="ProfilesList" DisplayMemberPath="Name" SelectionChanged="Profile_Changed" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"/>
+      </DockPanel>
+      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+       <StackPanel x:Name="ProfileEditor">
+        <CheckBox x:Name="ProfileEnabledBox" Content="Профиль включён" Margin="0,0,0,10"/>
+        <TextBlock Text="Название"/><TextBox x:Name="ProfileNameBox" Margin="0,5,0,10"/>
+        <TextBlock Text="Применять к"/><ComboBox x:Name="TargetKindBox" SelectionChanged="TargetKind_Changed" Margin="0,5,0,6" Height="34">
+         <ComboBoxItem Content="Всем клиентам" Tag="all"/><ComboBoxItem Content="Группе" Tag="group"/><ComboBoxItem Content="Отдельному клиенту" Tag="peer"/>
+        </ComboBox>
+        <ComboBox x:Name="TargetBox" DisplayMemberPath="Name" SelectedValuePath="Value" Margin="0,0,0,10" Height="34"/>
+        <TextBlock Text="Интервал, сек. (5–3600)"/><TextBox x:Name="ProfileIntervalBox" Width="90" HorizontalAlignment="Left" Margin="0,5,0,10"/>
+        <TextBlock Text="Сервисы: название:порт, каждый с новой строки" TextWrapping="Wrap"/>
+        <TextBox x:Name="PortsBox" AcceptsReturn="True" Height="110" VerticalScrollBarVisibility="Auto" Margin="0,5,0,8"/>
+        <WrapPanel><Button Content="RDP" Tag="RDP:3389" Click="AddPort_Click" Padding="10,5" Margin="0,0,6,6"/><Button Content="SMB" Tag="SMB:445" Click="AddPort_Click" Padding="10,5" Margin="0,0,6,6"/><Button Content="Radmin" Tag="Radmin" Click="AddPort_Click" Padding="10,5" Margin="0,0,0,6"/></WrapPanel>
+        <TextBlock Text="До 8 разных портов. Сбой подтверждается после 3 неудачных проверок. Проверяется установка TCP-соединения, а не авторизация или содержимое сервиса." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" FontSize="12"/>
+       </StackPanel>
+      </ScrollViewer>
+     </Grid>
+    </Grid>
+    <ScrollViewer x:Name="NotificationsPage" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+     <StackPanel><TextBlock Text="Правила уведомлений" FontSize="23" FontWeight="SemiBold"/>
+      <TextBlock Text="Для отслеживаемых клиентов текущего сервера и аккаунта. Расписание использует местное время Windows." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,14"/>
+      <TextBlock Text="Задержка Offline, сек. (0–3600)"/><TextBox x:Name="DelayBox" Width="90" HorizontalAlignment="Left" Margin="0,5,0,12"/>
+      <TextBlock Text="Объединять события в одно сообщение от (2–100)"/><TextBox x:Name="AggregateBox" Width="90" HorizontalAlignment="Left" Margin="0,5,0,12"/>
+      <CheckBox x:Name="ServiceNotificationsBox" Content="Уведомлять о сервисах у отслеживаемых клиентов" Margin="0,0,0,12"/>
+      <CheckBox x:Name="QuietBox" Content="Ежедневное расписание тишины" Margin="0,0,0,8"/>
+      <WrapPanel><TextBlock Text="С" VerticalAlignment="Center"/><TextBox x:Name="QuietStartBox" Width="70" Margin="8,0,12,0"/><TextBlock Text="до" VerticalAlignment="Center"/><TextBox x:Name="QuietEndBox" Width="70" Margin="8,0,0,0"/></WrapPanel>
+      <TextBlock Text="Формат ЧЧ:ММ. Одинаковые значения — тишина круглые сутки. Подавленные события не откладываются на конец тихого периода." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,16"/>
+      <TextBlock Text="Обслуживание группы" FontSize="16" FontWeight="SemiBold"/>
+      <WrapPanel Margin="0,8,0,8"><ComboBox x:Name="MaintenanceGroupBox" Width="190" Height="34" Margin="0,0,8,6"/><TextBox x:Name="MaintenanceMinutesBox" Text="30" Width="65" Margin="0,0,8,6" ToolTip="Минуты, 1–10080"/><Button Content="Добавить на указанное число минут" Click="AddMaintenance_Click" Padding="10,6" Margin="0,0,0,6"/></WrapPanel>
+      <ListBox x:Name="MaintenanceList" Height="90" DisplayMemberPath="Text"/>
+      <Button Content="Убрать выбранное обслуживание" Click="RemoveMaintenance_Click" HorizontalAlignment="Left" Padding="10,6" Margin="0,8,0,16"/>
+      <TextBlock Text="Последние решения об уведомлениях" FontSize="16" FontWeight="SemiBold"/>
+      <ListBox x:Name="DecisionsList" Height="180" Margin="0,8,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+       <ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Text}" TextWrapping="Wrap"/></DataTemplate></ListBox.ItemTemplate>
+      </ListBox>
+     </StackPanel>
+    </ScrollViewer>
+    <Grid x:Name="ViewsPage" Visibility="Collapsed">
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <StackPanel><TextBlock Text="Сохранённые представления" FontSize="23" FontWeight="SemiBold"/>
+      <TextBlock Text="Поиск, группа, фильтр, избранное, сортировка и колонки основного окна. Только текущие сервер/аккаунт и доступные группы." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,6,0,14"/>
+      <TextBlock Text="Название представления" Margin="0,0,0,5"/>
+      <DockPanel Margin="0,0,0,12"><Button Content="Сохранить текущий вид" DockPanel.Dock="Right" Click="SaveView_Click" Padding="12,7" Margin="8,0,0,0"/><TextBox x:Name="ViewNameBox" ToolTip="Название представления"/></DockPanel>
+     </StackPanel>
+     <ListBox x:Name="ViewsList" Grid.Row="1" DisplayMemberPath="Name"/>
+     <WrapPanel Grid.Row="2" Margin="0,12,0,0"><Button Content="Применить выбранное" Click="ApplyView_Click" Padding="12,7" Margin="0,0,8,0"/><Button Content="Удалить" Click="DeleteView_Click" Padding="12,7"/></WrapPanel>
+    </Grid>
+   </Grid>
+  </Grid>
+  <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="22,12">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+    <TextBlock x:Name="StatusText" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+    <WrapPanel Grid.Column="1"><Button x:Name="ApplyButton" Content="Применить профили и правила" Click="Apply_Click" Style="{StaticResource PrimaryButtonStyle}" Padding="12,7" Margin="0,0,8,0"/><Button Content="Закрыть" Click="Close_Click" Padding="12,7"/></WrapPanel>
+   </Grid>
+  </Border>
+ </Grid>
+</Window>

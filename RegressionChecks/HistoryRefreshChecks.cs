@@ -63,6 +63,11 @@ internal static class HistoryRefreshChecks
             var entry = new PeerHistoryEntry(DateTimeOffset.Now.AddMinutes(-1), "admin", "AWG", "ADMIN_ARCHIVE", "Online");
             seed.Save(PeerHistoryArchive.Scope(url, "admin"), [entry], 1);
             seed.Save(PeerHistoryArchive.Scope(url, "user"), [entry with { PeerId = "user", Previous = "USER_ARCHIVE" }, entry with { PeerId = "foreign" }], 2);
+            var incidentSeed = new IncidentArchive(Path.Combine(settingsService.SettingsDirectory, "incidents"));
+            var incidentTime = DateTimeOffset.Now.AddMinutes(-1);
+            var incident = new Incident(Guid.NewGuid().ToString("N"), "peer:admin", "Client", "ADMIN_INCIDENT", "admin", incidentTime, incidentTime, incidentTime, "Восстановлено");
+            incidentSeed.Save(PeerHistoryArchive.Scope(url, "admin"), [incident], 1, DateTimeOffset.Now);
+            incidentSeed.Save(PeerHistoryArchive.Scope(url, "user"), [incident with { Id = Guid.NewGuid().ToString("N"), PeerId = "user", Title = "USER_INCIDENT", Key = "peer:user" }, incident with { Id = Guid.NewGuid().ToString("N"), PeerId = "foreign" }], 1, DateTimeOffset.Now);
             window = new MainWindow(settingsService, new PeerHistoryArchive(archiveDirectory));
             Configure(window);
             var first = Refresh(window);
@@ -72,6 +77,8 @@ internal static class HistoryRefreshChecks
             Require(history.Entries.Count == 0, "Overlapping refresh must not load or discard history before authorization completes.");
             release.TrySetResult(); await first.WaitAsync(TimeSpan.FromSeconds(5));
             Require(history.Entries.Any(e => e.Previous == "ADMIN_ARCHIVE"), "First authorized refresh must restore the existing archive.");
+            var incidents = Field<IncidentTracker>(window, "_incidents");
+            Require(incidents.Entries.Any(e => e.Title == "ADMIN_INCIDENT"), "Authorized main-window refresh must restore incident archives.");
             var diagnostics = await Capture(window);
             Require(diagnostics.Report.Contains("Администратор API") && !diagnostics.Report.Contains("Последний успешный ответ API: —"),
                 "Main-window diagnostics must report the last authenticated API success.");
@@ -84,6 +91,7 @@ internal static class HistoryRefreshChecks
             Configure(window);
             await Refresh(window);
             Require(history.Entries.Count == 0, "Account switch must immediately hide prior history while an old request is pending.");
+            Require(incidents.Entries.Count == 0, "Account switch must clear previous incidents before the new authorization finishes.");
             diagnostics = await Capture(window);
             Require(diagnostics.Report.Contains("Режим доступа: Не подтверждён") && diagnostics.Report.Contains("Последний успешный ответ API: —"),
                 "Diagnostic account switch must clear prior role and successful API timestamps.");
@@ -92,6 +100,8 @@ internal static class HistoryRefreshChecks
             await Refresh(window).WaitAsync(TimeSpan.FromSeconds(5));
             Require(history.Entries.Any(e => e.Previous == "USER_ARCHIVE") && history.Entries.All(e => e.PeerId == "user"),
                 "The new account must restore only its authorized history after a fresh response.");
+            Require(incidents.Entries.Any(e => e.Title == "USER_INCIDENT") && incidents.Entries.All(e => e.PeerId is null or "user"),
+                "Incident restore must retain only the new account's authorized peer IDs.");
             var count = history.Entries.Count;
             Configure(window);
             Require(history.Entries.Count == count, "Applying ordinary settings must preserve current history.");
