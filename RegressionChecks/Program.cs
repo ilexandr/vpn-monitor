@@ -18,6 +18,9 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--update-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(); exitCode = 0; return; }
+                await UpdateChecks.RunAsync();
+                if (args.Contains("--updates-only")) { exitCode = 0; return; }
                 CheckTunnelHealth();
                 await CheckTunnelProbeAsync();
                 if (args.Contains("--health-only")) { exitCode = 0; return; }

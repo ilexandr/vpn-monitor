@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.61"
+ #define AppVersion "0.1.62"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -43,6 +43,8 @@ Source: "{#StageDir}\App\*"; DestDir: "{app}\Client"; Flags: ignoreversion recur
 Source: "{#StageDir}\Licenses\*"; DestDir: "{app}\Licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Setup-Components.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Setup-Components.ps1"; Flags: dontcopy
+Source: "Update-Application.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
+Source: "Resume-AfterUpdate.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 
 [InstallDelete]
 #include LegacyCleanup
@@ -69,7 +71,7 @@ begin
   DiagnosticPath := ExpandConstant('{tmp}\vpnmonitor-component-error.txt');
   DeleteFile(DiagnosticPath);
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -NonInteractive -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '"',
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '"',
     '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
   ComponentError := '';
   if not Result then begin

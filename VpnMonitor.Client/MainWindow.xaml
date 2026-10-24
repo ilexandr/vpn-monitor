@@ -253,6 +253,7 @@
                     <Button Content="AWG" Height="30" Padding="9,3" Margin="0,0,6,0" Click="AwgStatus_Click" ToolTip="Состояние общего туннеля компьютера"/>
                     <Button Content="Журнал" Height="30" Padding="9,3" Margin="0,0,6,0" Click="Log_Click"/>
                     <Button Content="CSV" Height="30" Padding="9,3" Margin="0,0,6,0" ToolTip="Экспорт текущего списка клиентов с учётом фильтра и сортировки" Click="ExportPeers_Click"/>
+                    <Button Content="ⓘ" Width="32" Height="30" Margin="0,0,6,0" ToolTip="О программе и проверка обновлений" Click="About_Click"/>
                     <Button Content="⚙" Width="32" Height="30" ToolTip="Настройки" Click="Settings_Click"/>
                 </StackPanel>
             </Grid>

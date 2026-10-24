@@ -281,7 +281,7 @@ internal static class ActionChecks
         Console.WriteLine("PASS: read-only shared AWG status, unelevated SCM query and window creation.");
         foreach (System.Windows.Window closeWindow in new System.Windows.Window[]
         {
-            new AwgStatusWindow(), new LogWindow(), new PeerHistoryWindow("Close test", new PeerHistory(), "test")
+            new AboutWindow(), new AwgStatusWindow(), new LogWindow(), new PeerHistoryWindow("Close test", new PeerHistory(), "test")
         })
         {
             var closed = false;

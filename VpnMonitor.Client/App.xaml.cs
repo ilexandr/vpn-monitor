@@ -17,6 +17,8 @@ public partial class App : System.Windows.Application
 
     public static string ClientLogPath => LogPath;
 
+    private UpdateParticipant? _updateParticipant;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         DispatcherUnhandledException += OnDispatcherUnhandledException;
@@ -34,6 +36,7 @@ public partial class App : System.Windows.Application
             var window = new MainWindow();
             MainWindow = window;
             window.Show();
+            _updateParticipant = new UpdateParticipant("Client", () => Dispatcher.BeginInvoke(new Action(() => window.ShutdownForUpdate())));
 
             Log("MainWindow shown.");
         }
@@ -43,6 +46,12 @@ public partial class App : System.Windows.Application
             ShowFatalError(ex);
             Shutdown(-1);
         }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _updateParticipant?.Dispose();
+        base.OnExit(e);
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
