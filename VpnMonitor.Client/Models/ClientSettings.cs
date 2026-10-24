@@ -9,6 +9,7 @@ public sealed class ClientSettings
     public string SshUsername { get; set; } = "";
     public int SshPort { get; set; } = 22;
     public List<CustomAction> CustomActions { get; set; } = [];
+    public List<BuiltinActionOptions> BuiltinActions { get; set; } = [];
     public bool StartWithWindows { get; set; }
     public bool StartMinimized { get; set; }
     public string Theme { get; set; } = "light";

@@ -39,6 +39,7 @@ public static class SettingsTransfer
             if (action is null) throw new ArgumentException("Пустое пользовательское действие.");
             CustomActionService.Validate(action);
         }
+        ClientActionCatalog.Validate(settings.BuiltinActions);
         settings.ProtectedPassword = "";
         return settings;
     }

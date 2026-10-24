@@ -20,6 +20,7 @@ public static class CustomActionService
     }
     public static ProcessStartInfo CreateStartInfo(CustomAction action, string address)
     {
+        if (action.BuiltinId is not null) throw new ArgumentException("Встроенная команда запускается приложением.");
         Validate(action);
         if (!IPAddress.TryParse(address, out var ip)) throw new ArgumentException("У клиента нет корректного VPN IP.");
         var info = new ProcessStartInfo(action.Executable) { UseShellExecute = true };

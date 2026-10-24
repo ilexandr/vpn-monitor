@@ -74,6 +74,12 @@ public partial class MainWindow : Window
         _settings = _settingsService.Load();
         ThemeService.Apply(_settings.Theme);
         DataContext = _viewModel;
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.F5) { e.Handled = true; Refresh_Click(this, new RoutedEventArgs()); }
+            else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            { e.Handled = true; SearchBox.Focus(); SearchBox.SelectAll(); }
+        };
 
         _tunnelHealthTimer.Tick += async (_, _) => await RefreshTunnelHealthAsync();
         _timer.Tick += async (_, _) => await RefreshDataAsync();
@@ -1017,43 +1023,63 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private ContextMenu BuildPeerContextMenu(Peer peer)
+    private ContextMenu BuildPeerContextMenu(Peer peer) => ClientActionMenu.Create(_settings,
+        definition => CreateBuiltinAction(peer, definition), definition => RunCustomAction(peer, definition), HasUsableVpnIp(peer));
+
+    private MenuItem CreateBuiltinAction(Peer peer, BuiltinActionOptions definition)
     {
-        var menu = new ContextMenu();
+        var enabled = HasUsableVpnIp(peer);
+        Action action = definition.Id switch
+        {
+            "favorite" => () => ToggleFavorite(peer),
+            "watch" => () => ToggleStatusNotification(peer),
+            "copy-name" => () => CopyPeerValue(peer.Name, "Имя"),
+            "copy-vpn" => () => CopyPeerValue(peer.VpnIp, "VPN IP"),
+            "copy-external" => () => CopyPeerValue(peer.EndpointHost, "External IP"),
+            "ping" => () => StartPing(peer),
+            "trace" => () => StartTraceRoute(peer),
+            "rdp" => () => StartRdp(peer),
+            "ssh" => () => StartSsh(peer),
+            "history" => () => ShowPeerHistory(peer),
+            "radmin-control" => () => StartRadmin(peer, false),
+            "radmin-files" => () => StartRadmin(peer, true),
+            _ => () => { }
+        };
+        if (definition.Id == "shares")
+        {
+            var shares = NetworkShareMenu.CreateSubmenu(share => OpenSharedFolder(peer, share),
+                () => ChooseSharedFolder(peer), enabled);
+            shares.Header = definition.Name;
+            return shares;
+        }
+        enabled = definition.Id switch
+        {
+            "favorite" or "watch" or "history" => true,
+            "copy-name" => !string.IsNullOrWhiteSpace(peer.Name),
+            "copy-vpn" => !string.IsNullOrWhiteSpace(peer.VpnIp),
+            "copy-external" => !string.IsNullOrWhiteSpace(peer.EndpointHost),
+            _ => enabled
+        };
+        var title = definition.Name;
+        if (definition.Id == "favorite" && title == "Избранное")
+            title = _viewModel.IsFavorite(peer.Id) ? "Убрать из избранного" : "Добавить в избранное";
+        if (definition.Id == "watch" && title == "Уведомления Online/Offline")
+            title = IsStatusNotificationEnabled(peer) ? "Отключить уведомления" : "Уведомлять Online/Offline";
+        var item = new MenuItem { Header = title, IsEnabled = enabled, Style = TryFindResource("ActionMenuItemStyle") as Style };
+        item.Click += (_, e) => { e.Handled = true; action(); };
+        return item;
+    }
 
-        AddActionMenuItem(menu,
-            _viewModel.IsFavorite(peer.Id) ? "Убрать из избранного" : "Добавить в избранное",
-            () => ToggleFavorite(peer));
-        AddActionMenuItem(menu,
-            IsStatusNotificationEnabled(peer) ? "Отключить уведомления Online/Offline" : "Уведомлять Online/Offline",
-            () => ToggleStatusNotification(peer));
+    private void More_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = MoreButton, Placement = PlacementMode.Bottom };
+        AddActionMenuItem(menu, "Журнал приложения", () => Log_Click(this, new RoutedEventArgs()));
+        AddActionMenuItem(menu, "Диагностика", () => ShowDiagnostics());
+        AddActionMenuItem(menu, "Экспорт списка в CSV", () => ExportPeers_Click(this, new RoutedEventArgs()));
         menu.Items.Add(CreateMenuSeparator());
-
-        AddActionMenuItem(menu, "Копировать имя", () => CopyPeerValue(peer.Name, "Имя"),
-            !string.IsNullOrWhiteSpace(peer.Name));
-        AddActionMenuItem(menu, "Копировать VPN IP", () => CopyPeerValue(peer.VpnIp, "VPN IP"),
-            !string.IsNullOrWhiteSpace(peer.VpnIp));
-        AddActionMenuItem(menu, "Копировать External IP", () => CopyPeerValue(peer.EndpointHost, "External IP"),
-            !string.IsNullOrWhiteSpace(peer.EndpointHost));
-
-        menu.Items.Add(CreateMenuSeparator());
-
-        AddActionMenuItem(menu, "Пинг", () => StartPing(peer), HasUsableVpnIp(peer));
-        AddActionMenuItem(menu, "Tracert", () => StartTraceRoute(peer), HasUsableVpnIp(peer));
-        AddActionMenuItem(menu, "RDP", () => StartRdp(peer), HasUsableVpnIp(peer));
-        AddActionMenuItem(menu, "SSH", () => StartSsh(peer), HasUsableVpnIp(peer));
-        if (_settings.CustomActions is { Count: > 0 })
-            menu.Items.Add(CustomActionMenu.Create(_settings.CustomActions, definition => RunCustomAction(peer, definition), HasUsableVpnIp(peer)));
-        AddActionMenuItem(menu, "История клиента", () => ShowPeerHistory(peer));
-        menu.Items.Add(NetworkShareMenu.CreateSubmenu(share => OpenSharedFolder(peer, share),
-            () => ChooseSharedFolder(peer), HasUsableVpnIp(peer)));
-
-        menu.Items.Add(CreateMenuSeparator());
-
-        AddActionMenuItem(menu, "Radmin Viewer — Управление", () => StartRadmin(peer, fileTransfer: false), HasUsableVpnIp(peer));
-        AddActionMenuItem(menu, "Radmin Viewer — Передача файлов", () => StartRadmin(peer, fileTransfer: true), HasUsableVpnIp(peer));
-
-        return menu;
+        AddActionMenuItem(menu, "Открыть Web", () => OpenVpnMonitorWeb_Click(this, new RoutedEventArgs()));
+        AddActionMenuItem(menu, "О программе и обновления", () => About_Click(this, new RoutedEventArgs()));
+        menu.IsOpen = true;
     }
 
     private void AddActionMenuItem(ContextMenu menu, string title, Action action, bool enabled = true)
@@ -1377,7 +1403,7 @@ public partial class MainWindow : Window
         _statusHintTimer.Tick += (_, _) =>
         {
             _statusHintTimer?.Stop();
-            StatusHintText.Text = "★ — избранное • двойной клик — карточка • ПКМ — действия • VPN IP — копирование • крестик — в трей";
+            StatusHintText.Text = "Двойной клик — карточка · ПКМ — действия";
         };
         _statusHintTimer.Start();
     }
@@ -1490,6 +1516,10 @@ public partial class MainWindow : Window
             Placement = PlacementMode.Bottom
         };
 
+        AddActionMenuItem(menu, "Основные колонки", () => ApplyColumnPreset(false));
+        AddActionMenuItem(menu, "Все колонки", () => ApplyColumnPreset(true));
+        menu.Items.Add(CreateMenuSeparator());
+
         AddColumnMenuItem(menu, "status", "Статус", _settings.ShowStatusColumn);
         AddColumnMenuItem(menu, "computer", "Компьютер", _settings.ShowComputerColumn);
         AddColumnMenuItem(menu, "vpn", "VPN IP", _settings.ShowVpnIpColumn);
@@ -1498,6 +1528,14 @@ public partial class MainWindow : Window
         AddColumnMenuItem(menu, "groups", "Группы", _settings.ShowGroupsColumn);
 
         menu.IsOpen = true;
+    }
+
+    private void ApplyColumnPreset(bool all)
+    {
+        _settings.ShowStatusColumn = _settings.ShowComputerColumn = _settings.ShowVpnIpColumn = true;
+        _settings.ShowHandshakeColumn = _settings.ShowTrafficColumn = _settings.ShowGroupsColumn = all;
+        ApplyColumnVisibility();
+        SaveSettings();
     }
 
     private void AddColumnMenuItem(ContextMenu menu, string key, string title, bool isChecked)

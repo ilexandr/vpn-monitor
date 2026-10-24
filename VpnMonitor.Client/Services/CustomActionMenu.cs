@@ -9,7 +9,7 @@ public static class CustomActionMenu
         var style = System.Windows.Application.Current?.TryFindResource("ActionMenuItemStyle") as Style;
         var root = new MenuItem { Header = "Пользовательские действия", IsEnabled = enabled, Style = style };
         var groups = new Dictionary<string, MenuItem>(StringComparer.CurrentCultureIgnoreCase);
-        foreach (var action in actions)
+        foreach (var action in actions.Where(a => a.Enabled))
         {
             var group = action.Group?.Trim() ?? "";
             var parent = root;

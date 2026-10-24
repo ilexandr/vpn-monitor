@@ -26,6 +26,7 @@ internal static class Program
             try
             {
                 if (args.Contains("--live-access")) { await LiveAccessChecks.RunAsync(); exitCode = 0; return; }
+                if (args.Contains("--interface-only")) { await InterfaceChecks.RunAsync(); exitCode = 0; return; }
                 if (args.Contains("--uninstall-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(true); exitCode = 0; return; }
                 if (args.Contains("--update-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(); exitCode = 0; return; }
                 await CountChecks.RunAsync();
@@ -37,6 +38,7 @@ internal static class Program
                 await HistoryRefreshChecks.RunAsync();
                 await ConnectionRecoveryChecks.RunAsync();
                 await OwnedWindowChecks.RunAsync();
+                await InterfaceChecks.RunAsync();
                 SettingsRecoveryChecks.Run();
                 await DiagnosticChecks.RunAsync();
                 await CheckTunnelProbeAsync();

@@ -110,15 +110,16 @@ internal static class ActionChecks
         var groupInput = (TextBox)entryEditor.FindName("GroupBox");
         var groupChoices = (ComboBox)entryEditor.FindName("GroupChoices");
         var actionList = (ListBox)entryEditor.FindName("ActionsList");
+        actionList.SelectedItem = entryEditor.Actions[0];
         groupInput.Text = "Новая группа";
-        actionList.SelectedIndex = 1;
+        actionList.SelectedItem = entryEditor.Actions[1];
         Require(entryEditor.Actions[0].Group == "Новая группа", "New group text must be committed on action change.");
         groupChoices.SelectedItem = "Новая группа";
         Require(groupInput.Text == "Новая группа", "Choosing an existing group must fill the text field.");
-        actionList.SelectedIndex = 0;
+        actionList.SelectedItem = entryEditor.Actions[0];
         Require(entryEditor.Actions[1].Group == "Новая группа", "Selected existing group must be committed.");
         groupInput.Text = "";
-        actionList.SelectedIndex = 1;
+        actionList.SelectedItem = entryEditor.Actions[1];
         Require(entryEditor.Actions[0].Group == "", "Clearing group text must remove grouping.");
         entryEditor.Close();
 
@@ -150,7 +151,7 @@ internal static class ActionChecks
             navigation.SelectedIndex = section;
             for (var pageIndex = 0; pageIndex < 7; pageIndex++)
                 Require(((StackPanel)settingsWindow.FindName("SettingsPage" + pageIndex)).Visibility ==
-                    (section == pageIndex ? Visibility.Visible : Visibility.Collapsed), "Only the selected settings page must be visible.");
+                    Visibility.Visible, "All settings sections must stay visible in the continuous ribbon.");
         }
         Require(serverBox.Text == "http://example.test" && checkBox.Text == "17", "Section changes must retain unsaved fields.");
         Require(navigationSettings.ServerUrl == "http://10.20.0.1" && navigationSettings.ActiveCheckSeconds == 5, "Navigation must not apply unsaved values.");
@@ -161,7 +162,7 @@ internal static class ActionChecks
         settingsSearch.Text = "TCP порт";
         Require(settingsResults.Items.Count > 0, "Settings search must match multiple words.");
         settingsResults.SelectedIndex = 0;
-        Require(navigation.SelectedIndex == 4, "Search selection must navigate to availability checks.");
+        // Actual scrolling/search synchronization is verified on a shown window in InterfaceChecks.
         Require(serverBox.Text == "http://example.test" && checkBox.Text == "17", "Search navigation must retain unsaved values.");
         settingsSearch.Text = "несуществующий-параметр";
         Require(settingsResults.Items.Count == 0 && ((TextBlock)settingsWindow.FindName("SearchHint")).Text == "Ничего не найдено", "Empty results must have an explicit message.");

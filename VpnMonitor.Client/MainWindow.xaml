@@ -223,11 +223,6 @@
                             FontSize="18" FontWeight="SemiBold"
                             ToolTip="Открыть VPN Monitor: http://10.20.0.1/"
                             Click="OpenVpnMonitorWeb_Click"/>
-                    <TextBlock Text=" • " Foreground="{DynamicResource HeaderMutedBrush}" VerticalAlignment="Center" Margin="2,0"/>
-                    <Button Content="{Binding ConfigurationName, Mode=OneWay}"
-                            Style="{StaticResource HeaderMutedLinkStyle}"
-                            ToolTip="Открыть peers этой конфигурации в WGDashboard"
-                            Click="OpenWgDashboardPeers_Click"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
@@ -240,7 +235,7 @@
                             Padding="8,4"
                             Margin="0,0,10,0"
                             VerticalAlignment="Center">
-                        <TextBlock x:Name="UserAccessText"
+                        <TextBlock x:Name="UserAccessText" MaxWidth="130" TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource HeaderMutedBrush}"
                                    FontSize="11"
                                    FontWeight="SemiBold"/>
@@ -250,11 +245,9 @@
                         <Run Text="● "/><Run Text="{Binding OnlineCountText, Mode=OneWay}" FontWeight="Bold"/><Run Text="/"/><Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="Bold"/>
                     </TextBlock>
                     <Button x:Name="RefreshButton" Content="↻" Width="32" Height="30" Margin="0,0,6,0"
-                            ToolTip="Обновить сейчас" Click="Refresh_Click"/>
+                            ToolTip="Обновить сейчас (F5)" Click="Refresh_Click"/>
                     <Button Content="AWG" Height="30" Padding="9,3" Margin="0,0,6,0" Click="AwgStatus_Click" ToolTip="Состояние общего туннеля компьютера"/>
-                    <Button Content="Журнал" Height="30" Padding="9,3" Margin="0,0,6,0" Click="Log_Click"/>
-                    <Button Content="CSV" Height="30" Padding="9,3" Margin="0,0,6,0" ToolTip="Экспорт текущего списка клиентов с учётом фильтра и сортировки" Click="ExportPeers_Click"/>
-                    <Button Content="ⓘ" Width="32" Height="30" Margin="0,0,6,0" ToolTip="О программе и проверка обновлений" Click="About_Click"/>
+                    <Button x:Name="MoreButton" Content="Ещё ▾" Height="30" Padding="10,3" Margin="0,0,6,0" Click="More_Click" ToolTip="Журнал, диагностика, экспорт, Web и обновления"/>
                     <Button Content="⚙" Width="32" Height="30" ToolTip="Настройки" Click="Settings_Click"/>
                 </StackPanel>
             </Grid>
@@ -377,6 +370,11 @@
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="Поиск по имени, IP, endpoint, заметке и группе. Слова через пробел: должны найтись все. Например: Prestig BH."/>
 
+                        <TextBlock Grid.Column="0" Text="Поиск клиентов…" Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" Foreground="{DynamicResource MutedBrush}">
+                            <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0">
                             <Border Background="{DynamicResource FilterGroupBackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"
@@ -419,7 +417,7 @@
                               MouseDoubleClick="PeersGrid_MouseDoubleClick">
                         <DataGrid.RowStyle>
                             <Style TargetType="DataGridRow">
-                                <Setter Property="MinHeight" Value="54"/>
+                                <Setter Property="MinHeight" Value="46"/>
                                 <Setter Property="VerticalContentAlignment" Value="Center"/>
                                 <Setter Property="Background" Value="{DynamicResource RowBackgroundBrush}"/>
                                 <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
@@ -563,18 +561,18 @@
                 </Border>
 
                 <!-- Status bar keeps update time visible even in a narrow window -->
-                <Grid Grid.Row="3" Margin="2,7,2,0">
+                <Grid Grid.Row="3" Margin="2,7,2,0" ToolTip="{Binding AwgState.Message}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock x:Name="StatusHintText" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis"
-                                   Text="★ — избранное • двойной клик — карточка • ПКМ — действия • VPN IP — копирование • крестик — в трей"/>
-                        <TextBlock Text="{Binding AwgState.Message}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                   Text="Двойной клик — карточка · ПКМ — действия"/>
+
                     </StackPanel>
                     <TextBlock Grid.Column="1" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="12,0,0,0">
-                        <Run Text="Обновлено: "/><Run Text="{Binding LastUpdated, Mode=OneWay}"/>
+                        <Run Text=""/><Run Text="{Binding LastUpdated, Mode=OneWay}"/>
                     </TextBlock>
                 </Grid>
             </Grid>

@@ -15,6 +15,8 @@ public partial class SettingsWindow : Window
     private readonly AutostartService _autostartService = new();
     private readonly RadminService _radminService = new();
     private readonly Action? _testNotification;
+    private bool _syncingNavigation;
+    private StackPanel[] Sections => [SettingsPage0, SettingsPage1, SettingsPage2, SettingsPage3, SettingsPage4, SettingsPage5, SettingsPage6];
 
     public SettingsWindow(SettingsService settingsService, ClientSettings settings, Action? testNotification = null)
     {
@@ -29,6 +31,7 @@ public partial class SettingsWindow : Window
         RestoreWindowSize();
         Closing += SettingsWindow_Closing;
         BuildSettingsSearchIndex();
+        Loaded += (_, _) => SyncNavigation();
     }
 
     private void TestNotification_Click(object sender, RoutedEventArgs e)
@@ -138,18 +141,40 @@ public partial class SettingsWindow : Window
     {
         if (!ReferenceEquals(e.Source, SettingsSearchResults) ||
             SettingsSearchResults.SelectedItem is not SettingsSearchEntry entry) return;
-        SettingsNavigation.SelectedIndex = entry.Page;
-        Dispatcher.BeginInvoke(new Action(() => entry.Target.BringIntoView()));
+        Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (!IsLoaded) return;
+            var target = entry.Target;
+            while (!target.IsVisible && LogicalTreeHelper.GetParent(target) is FrameworkElement parent) target = parent;
+            double y;
+            try { y = target.TranslatePoint(new System.Windows.Point(), SettingsSections).Y; }
+            catch (InvalidOperationException) { y = Sections[entry.Page].TranslatePoint(new System.Windows.Point(), SettingsSections).Y; }
+            SectionScroll.ScrollToVerticalOffset(Math.Max(0, y - 24));
+        }));
     }
 
     private void SettingsNavigation_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // ComboBox selection events bubble through the same visual tree.
-        if (!ReferenceEquals(e.Source, SettingsNavigation)) return;
-        var pages = new[] { SettingsPage0, SettingsPage1, SettingsPage2, SettingsPage3, SettingsPage4, SettingsPage5, SettingsPage6 };
-        for (var i = 0; i < pages.Length; i++)
-            pages[i].Visibility = i == SettingsNavigation.SelectedIndex ? Visibility.Visible : Visibility.Collapsed;
-        SectionScroll.ScrollToTop();
+        if (!ReferenceEquals(e.Source, SettingsNavigation) || _syncingNavigation || !IsLoaded) return;
+        if (SettingsNavigation.SelectedIndex < 0) return;
+        var section = Sections[SettingsNavigation.SelectedIndex];
+        SectionScroll.ScrollToVerticalOffset(section.TranslatePoint(new System.Windows.Point(), SettingsSections).Y);
+    }
+
+    private void SectionScroll_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    {
+        if (ReferenceEquals(e.OriginalSource, SectionScroll) && IsLoaded) SyncNavigation();
+    }
+
+    private void SyncNavigation()
+    {
+        var index = 0;
+        for (var i = 0; i < Sections.Length; i++)
+            if (Sections[i].TranslatePoint(new System.Windows.Point(), SettingsSections).Y <= SectionScroll.VerticalOffset + 28) index = i;
+        _syncingNavigation = true;
+        try { SettingsNavigation.SelectedIndex = index; }
+        finally { _syncingNavigation = false; }
     }
 
     private void Window_SourceInitialized(object? sender, EventArgs e)
@@ -322,17 +347,25 @@ public partial class SettingsWindow : Window
             imported.ProtectedPassword = sameAccount ? _settings.ProtectedPassword : "";
             _pendingImport = imported;
             _customActions = imported.CustomActions;
+            _builtinActions = imported.BuiltinActions;
             LoadForm(imported);
             SettingsNavigation.SelectedIndex = 0;
+            SectionScroll.ScrollToTop();
             TestStatus.Text = "Импорт подготовлен. Проверьте значения и пароль, затем нажмите «Сохранить».";
         }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Импорт настроек", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private void CustomActions_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = OwnedWindowBehavior.Attach(new CustomActionsWindow(_customActions ?? _settings.CustomActions ?? []), this);
-        if (dialog.ShowDialog() == true) _customActions = dialog.Actions.ToList();
+        var dialog = OwnedWindowBehavior.Attach(new CustomActionsWindow(_customActions ?? _settings.CustomActions ?? [],
+            _builtinActions ?? _pendingImport?.BuiltinActions ?? _settings.BuiltinActions), this);
+        if (dialog.ShowDialog() == true)
+        {
+            _customActions = dialog.Actions.ToList();
+            _builtinActions = dialog.BuiltinActions;
+        }
     }
+    private List<BuiltinActionOptions>? _builtinActions;
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         if (!TryReadForm(out var serverUrl, out var username, out var password, out var refreshSeconds))
@@ -383,6 +416,7 @@ public partial class SettingsWindow : Window
             }
         }
         if (_customActions is not null) _settings.CustomActions = _customActions;
+        if (_builtinActions is not null) _settings.BuiltinActions = _builtinActions;
         _settings.StatusNotificationSource = NotificationSourceBox.SelectedIndex == 0 ? "active" : "awg";
         _settings.ActiveChecksEnabled = ActiveChecksEnabledBox.IsChecked == true;
         _settings.SavePeerHistory = SavePeerHistoryBox.IsChecked == true;
