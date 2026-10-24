@@ -25,6 +25,11 @@ public partial class MainWindow : Window
     private ClientSettings _settings;
     private readonly MainViewModel _viewModel = new();
     private readonly PeerHistory _peerHistory = new();
+    private readonly PeerHistoryArchive _historyArchive = new();
+    private readonly DispatcherTimer _historySaveTimer = new() { Interval = TimeSpan.FromSeconds(15) };
+    private string? _historyScope;
+    private bool _historyLoaded, _historyLoading, _historyDirty, _historySaving, _historyPersistence;
+    private long _historyRevision;
     private readonly TunnelHealthMonitor _tunnelHealth = new();
     private readonly DispatcherTimer _tunnelHealthTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly CancellationTokenSource _tunnelHealthCancellation = new();
@@ -76,6 +81,9 @@ public partial class MainWindow : Window
         _tunnelHealthTimer.Tick += async (_, _) => await RefreshTunnelHealthAsync();
         _timer.Tick += async (_, _) => await RefreshDataAsync();
         _reachabilityTimer.Tick += async (_, _) => await RefreshReachabilityAsync();
+        _peerHistory.Entries.CollectionChanged += (_, _) => _historyDirty = true;
+        _historySaveTimer.Tick += async (_, _) => await SaveHistoryAsync();
+        _historySaveTimer.Start();
 
     }
 
@@ -335,7 +343,7 @@ public partial class MainWindow : Window
             password = _settingsService.UnprotectPassword(_settings.ProtectedPassword);
         }
 
-        _peerHistory.Reset();
+        ConfigureHistory();
         _viewModel.Configure(_settings.ServerUrl, _settings.Username, password);
         _reachabilityCancellation.Cancel();
         _reachabilityCancellation.Dispose();
@@ -345,6 +353,48 @@ public partial class MainWindow : Window
         _referenceServerAvailable = null;
         ResetStatusNotificationSnapshot();
         return true;
+    }
+
+    private void ConfigureHistory()
+    {
+        string? scope = null;
+        try { scope = PeerHistoryArchive.Scope(_settings.ServerUrl, _settings.Username); }
+        catch (ArgumentException) { /* API configuration will report an invalid address. */ }
+        if (_historyScope != scope)
+        {
+            SaveHistoryOnExit();
+            foreach (var window in OwnedWindows.OfType<PeerHistoryWindow>().ToArray()) window.Close();
+            _peerHistory.Reset();
+            _historyScope = scope;
+            _historyLoaded = false;
+        }
+        _historyPersistence = _settings.SavePeerHistory;
+        if (!_historyPersistence)
+        {
+            try { _historyArchive.ClearAll(++_historyRevision); }
+            catch (Exception ex) { App.Log("Could not remove saved history archives.", ex); }
+        }
+        _historyDirty = true;
+    }
+
+    private async Task SaveHistoryAsync()
+    {
+        if (_historySaving || !_historyPersistence || !_historyLoaded || !_historyDirty || _historyScope is null) return;
+        _historySaving = true;
+        _historyDirty = false;
+        var scope = _historyScope;
+        var snapshot = _peerHistory.Entries.ToArray();
+        var revision = ++_historyRevision;
+        try { await Task.Run(() => _historyArchive.Save(scope, snapshot, revision)); }
+        catch (Exception ex) { _historyDirty = true; App.Log("Could not save peer history archive.", ex); }
+        finally { _historySaving = false; }
+    }
+
+    private void SaveHistoryOnExit()
+    {
+        if (!_historyPersistence || !_historyLoaded || _historyScope is null) return;
+        try { _historyArchive.Save(_historyScope, _peerHistory.Entries.ToArray(), ++_historyRevision); }
+        catch (Exception ex) { App.Log("Could not flush peer history archive.", ex); }
     }
 
     private async Task RefreshTunnelHealthAsync()
@@ -402,6 +452,24 @@ public partial class MainWindow : Window
 
             if (!_viewModel.HasError)
             {
+                if (!_historyLoaded)
+                {
+                    if (_historyLoading) return;
+                    _historyLoading = true;
+                    var scope = _historyScope;
+                    var persistence = _historyPersistence;
+                    try
+                    {
+                        var saved = persistence && scope is not null
+                            ? await Task.Run(() => _historyArchive.Load(scope)) : [];
+                        if (scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
+                        _peerHistory.RestoreAuthorized(saved, _viewModel.Peers.Select(p => p.Id));
+                    }
+                    catch (Exception ex) { App.Log("Peer history archive unavailable; starting a fresh history.", ex); }
+                    finally { _historyLoading = false; }
+                    if (scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
+                    _historyLoaded = true;
+                }
                 _peerHistory.RetainPeers(_viewModel.Peers.Select(p => p.Id));
                 foreach (var peer in _viewModel.Peers)
                 {
@@ -1057,7 +1125,7 @@ public partial class MainWindow : Window
 
     private void ShowPeerHistory(Peer peer)
     {
-        var window = new PeerHistoryWindow(peer.Name, _peerHistory, peer.Id) { Owner = this };
+        var window = new PeerHistoryWindow(peer.Name, _peerHistory, peer.Id, _settings.SavePeerHistory, SaveHistoryOnExit) { Owner = this };
         window.Show();
     }
 
@@ -1515,7 +1583,10 @@ public partial class MainWindow : Window
             return;
         }
 
+        _allowExit = true;
         SaveWindowState();
+        _historySaveTimer.Stop();
+        SaveHistoryOnExit();
         _timer.Stop();
         _reachabilityTimer.Stop();
         _reachabilityCancellation.Cancel();

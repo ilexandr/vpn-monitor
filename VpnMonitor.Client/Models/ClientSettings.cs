@@ -34,6 +34,7 @@ public sealed class ClientSettings
     public bool NotifyWhenOffline { get; set; } = true;
     public string StatusNotificationSource { get; set; } = "active";
     public bool ActiveChecksEnabled { get; set; } = true;
+    public bool SavePeerHistory { get; set; } = true;
     public int ActiveCheckSeconds { get; set; } = 5;
     public bool ActiveChecksWatchedOnly { get; set; }
     public bool ActiveCheckTcpFallback { get; set; }

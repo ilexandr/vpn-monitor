@@ -4,7 +4,7 @@
  Title="История клиента" Width="760" Height="460" MinWidth="550" MinHeight="300"
  WindowStartupLocation="CenterOwner" Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource TextBrush}">
  <DockPanel Margin="16">
-  <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,12"
+  <TextBlock x:Name="HistoryDescription" DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,12"
     Text="История текущего сеанса: статус AWG, активная доступность и endpoint. Хранится до 2000 событий на всех клиентов. Первое наблюдение задаёт исходное состояние. При потере связи статус неизвестен."/>
   <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
    <TextBlock Text="Поиск:" VerticalAlignment="Center" Margin="0,0,10,0"/>
@@ -12,6 +12,7 @@
   </DockPanel>
   <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
    <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Закрыть" IsCancel="True" Click="Close_Click" Padding="16,7"/>
+   <Button x:Name="ClearButton" DockPanel.Dock="Right" Content="Очистить..." Click="Clear_Click" Padding="12,7" Margin="8,0"/>
    <Button x:Name="ExportButton" Content="Экспорт CSV..." Click="Export_Click" HorizontalAlignment="Left" Padding="16,7"/>
   </DockPanel>
   <DataGrid x:Name="HistoryGrid" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"

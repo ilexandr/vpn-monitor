@@ -97,6 +97,11 @@ internal static class ActionChecks
         historySearch.Text = "";
         Require(filteredHistory.Items.Count == 2, "Clearing history search must restore only this peer's events.");
         historyWindow.Close();
+        var savedHistoryWindow = new PeerHistoryWindow("Saved", history, "b", true);
+        Require(((TextBlock)savedHistoryWindow.FindName("HistoryDescription")).Text.Contains("7 дней")
+            && savedHistoryWindow.FindName("ClearButton") is System.Windows.Controls.Button,
+            "Persistent history must explain retention and offer clearing in its actual window.");
+        savedHistoryWindow.Close();
         Console.WriteLine("PASS: action groups, nested popups, callbacks, settings compatibility, isolated editing; bounded history, deduplication, unknown states, endpoint changes and scope reset.");
         var entryEditor = new CustomActionsWindow([
             new CustomAction { Name = "First", Group = "Existing" },

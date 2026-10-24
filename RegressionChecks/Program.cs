@@ -25,6 +25,7 @@ internal static class Program
                 if (args.Contains("--updates-only")) { exitCode = 0; return; }
                 CheckTunnelHealth();
                 HistoryChecks.Run();
+                HistoryArchiveChecks.Run();
                 await CheckTunnelProbeAsync();
                 if (args.Contains("--health-only")) { exitCode = 0; return; }
                 if (args.Contains("--access-only"))

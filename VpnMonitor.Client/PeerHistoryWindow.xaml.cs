@@ -5,9 +5,16 @@ namespace VpnMonitor.Client;
 public partial class PeerHistoryWindow : Window
 {
     private readonly ListCollectionView _view;
-    public PeerHistoryWindow(string name, PeerHistory history, string peerId)
+    private readonly PeerHistory _history;
+    private readonly string _peerId;
+    private readonly Action? _onClear;
+    public PeerHistoryWindow(string name, PeerHistory history, string peerId, bool persistent = false, Action? onClear = null)
     {
+        _history = history;
+        _peerId = peerId;
+        _onClear = onClear;
         InitializeComponent();
+        if (persistent) HistoryDescription.Text = "История AWG, доступности и endpoint за 7 дней, до 2000 событий на всех клиентов. Сохраняется для этого сервера и аккаунта, защищена пользователем Windows. Первое наблюдение после запуска задаёт исходное состояние; время закрытого приложения не отслеживается.";
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key != System.Windows.Input.Key.Escape) return;
@@ -22,6 +29,15 @@ public partial class PeerHistoryWindow : Window
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
     private void Search_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e) => _view?.Refresh();
+    private void Clear_Click(object sender, RoutedEventArgs e)
+    {
+        if (System.Windows.MessageBox.Show(this, "Удалить историю этого клиента? Следующая проверка запишет новое исходное состояние.",
+            "История клиента", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes)
+        {
+            _history.ClearPeer(_peerId);
+            _onClear?.Invoke();
+        }
+    }
     private async void Export_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new Microsoft.Win32.SaveFileDialog

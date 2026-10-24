@@ -189,6 +189,8 @@
                 <TextBlock Text="Резервный TCP-порт (например: Radmin 4899, RDP 3389)" TextWrapping="Wrap" FontWeight="SemiBold" />
                 <TextBox x:Name="ActiveCheckTcpPortBox" Width="90" Height="34" HorizontalAlignment="Left" Padding="8,5" Margin="0,6,0,8" />
                 <TextBlock Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="Отключение подтверждается после 3 неудачных циклов. Если сервер недоступен, уведомления о потере клиентов подавляются. Нет ответа ping — не обязательно выключенный компьютер. Общие счётчики и фильтры Online/Offline используют статус AWG." />
+                <CheckBox x:Name="SavePeerHistoryBox" Content="Сохранять историю клиентов между запусками" Margin="0,18,0,8"/>
+                <TextBlock Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="До 7 дней и 2000 событий на сервер и аккаунт. Архив защищён текущим пользователем Windows. Отключение удаляет сохранённые архивы этого пользователя; история текущего сеанса остаётся."/>
               </StackPanel>
             </Border>
           </StackPanel>

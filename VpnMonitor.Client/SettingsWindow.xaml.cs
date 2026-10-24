@@ -68,6 +68,7 @@ public partial class SettingsWindow : Window
         NotifyWhenOfflineCheckBox.IsChecked = settings.NotifyWhenOffline;
         NotificationSourceBox.SelectedIndex = settings.StatusNotificationSource == "active" ? 0 : 1;
         ActiveChecksEnabledBox.IsChecked = settings.ActiveChecksEnabled;
+        SavePeerHistoryBox.IsChecked = settings.SavePeerHistory;
         ActiveChecksWatchedOnlyBox.IsChecked = settings.ActiveChecksWatchedOnly;
         ActiveCheckSecondsBox.Text = Math.Clamp(settings.ActiveCheckSeconds, 2, 300).ToString();
         ActiveCheckTcpFallbackBox.IsChecked = settings.ActiveCheckTcpFallback;
@@ -371,6 +372,7 @@ public partial class SettingsWindow : Window
         if (_customActions is not null) _settings.CustomActions = _customActions;
         _settings.StatusNotificationSource = NotificationSourceBox.SelectedIndex == 0 ? "active" : "awg";
         _settings.ActiveChecksEnabled = ActiveChecksEnabledBox.IsChecked == true;
+        _settings.SavePeerHistory = SavePeerHistoryBox.IsChecked == true;
         _settings.ActiveChecksWatchedOnly = ActiveChecksWatchedOnlyBox.IsChecked == true;
         _settings.ActiveCheckSeconds = activeSeconds;
         _settings.ActiveCheckTcpFallback = ActiveCheckTcpFallbackBox.IsChecked == true;
