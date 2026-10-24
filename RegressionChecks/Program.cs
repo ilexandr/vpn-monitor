@@ -16,6 +16,8 @@ internal static class Program
             for (var i = 0; i < 10; i++) RollingLog.Append(args[1], args[2] + "-" + i + "\n");
             return 0;
         }
+        VpnMonitor.Client.App.ConfigureLogDirectory(System.IO.Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "logs"));
+        SettingsService.ConfigureDefaultDirectory(System.IO.Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "settings"));
         var dispatcher = Dispatcher.CurrentDispatcher;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var exitCode = 1;
@@ -32,6 +34,9 @@ internal static class Program
                 HistoryChecks.Run();
                 HistoryArchiveChecks.Run();
                 await HistoryRefreshChecks.RunAsync();
+                await ConnectionRecoveryChecks.RunAsync();
+                await OwnedWindowChecks.RunAsync();
+                SettingsRecoveryChecks.Run();
                 await DiagnosticChecks.RunAsync();
                 await CheckTunnelProbeAsync();
                 if (args.Contains("--health-only")) { exitCode = 0; return; }

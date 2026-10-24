@@ -14,7 +14,7 @@ internal static class HistoryRefreshChecks
     {
         if (System.Windows.Application.Current is null)
         {
-            var app = new App(); app.InitializeComponent();
+            var app = new App(false); app.InitializeComponent();
         }
         System.Windows.Application.Current!.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var directory = Path.Combine(Path.GetTempPath(), "VpnMonitor-history-refresh-" + Guid.NewGuid().ToString("N"));

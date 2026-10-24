@@ -172,6 +172,8 @@
                     <ComboBoxItem Content="Статус AWG" />
                   </ComboBox>
                   <TextBlock Margin="28,2,0,0" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="Клиенты для наблюдения выбираются через контекстное меню или карточку клиента." />
+                  <Button x:Name="TestNotificationButton" Content="Проверить уведомление Windows" Click="TestNotification_Click" HorizontalAlignment="Left" Padding="12,7" Margin="0,16,0,8"/>
+                  <TextBlock x:Name="TestNotificationText" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Text="Отправляет одно тестовое сообщение без изменения состояния клиентов."/>
                 </StackPanel>
               </StackPanel>
             </Border>

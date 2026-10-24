@@ -21,6 +21,7 @@ namespace VpnMonitor.Client;
 
 public partial class MainWindow : Window
 {
+    public bool IsExiting => _allowExit;
     private readonly SettingsService _settingsService;
     private ClientSettings _settings;
     private readonly MainViewModel _viewModel = new();
@@ -310,7 +311,7 @@ public partial class MainWindow : Window
 
     private static System.Drawing.Icon LoadTrayIcon()
     {
-        var uri = new Uri("pack://application:,,,/Assets/AWG_Monitor.ico", UriKind.Absolute);
+        var uri = new Uri("pack://application:,,,/VpnMonitor.Client;component/Assets/AWG_Monitor.ico", UriKind.Absolute);
         var resource = System.Windows.Application.GetResourceStream(uri);
 
         if (resource?.Stream is null)
@@ -588,7 +589,7 @@ public partial class MainWindow : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         if (_aboutWindow is not null) { _aboutWindow.Activate(); return; }
-        _aboutWindow = new AboutWindow(ShowDiagnostics) { Owner = this };
+        _aboutWindow = OwnedWindowBehavior.Attach(new AboutWindow(ShowDiagnostics), this);
         _aboutWindow.Closed += (_,_) => _aboutWindow = null;
         _aboutWindow.Show();
     }
@@ -598,7 +599,7 @@ public partial class MainWindow : Window
     private void ShowDiagnostics()
     {
         if (_diagnosticsWindow is not null) { _diagnosticsWindow.Activate(); return; }
-        _diagnosticsWindow = new DiagnosticsWindow(CaptureDiagnosticsAsync, () => Log_Click(this, new RoutedEventArgs())) { Owner = this };
+        _diagnosticsWindow = OwnedWindowBehavior.Attach(new DiagnosticsWindow(CaptureDiagnosticsAsync, () => Log_Click(this, new RoutedEventArgs())), this);
         _diagnosticsWindow.Closed += (_, _) => _diagnosticsWindow = null;
         _diagnosticsWindow.Show();
     }
@@ -608,14 +609,15 @@ public partial class MainWindow : Window
         var state = new DiagnosticState(_settings.ServerUrl, _viewModel.AwgState.IsCurrent, _dataRefreshRunning, _viewModel.ErrorMessage,
             _lastApiAttempt, _lastApiSuccess,
             _lastApiSuccess is null || _viewModel.HasError ? "Не подтверждён" : _viewModel.IsAdmin ? "Администратор API" : "Ограниченный пользователь API",
-            _viewModel.TotalCount, _settings.ActiveChecksEnabled, Math.Clamp(_settings.ActiveCheckSeconds, 2, 300), _settings.SavePeerHistory, _tunnelHealth.Details);
+            _viewModel.TotalCount, _settings.ActiveChecksEnabled, Math.Clamp(_settings.ActiveCheckSeconds, 2, 300), _settings.SavePeerHistory, _tunnelHealth.Details,
+            _viewModel.ConsecutiveFailures, _viewModel.TransportRetryCount, _viewModel.LastRecoveredAt);
         var redactor = new DiagnosticRedactor([_settingsService.UnprotectPassword(_settings.ProtectedPassword), _settings.ProtectedPassword]);
         return Task.Run(() => new DiagnosticCapture(DiagnosticReport.Create(state), redactor));
     }
     private void AwgStatus_Click(object sender, RoutedEventArgs e)
     {
         if (_awgStatusWindow is not null) { _awgStatusWindow.Activate(); return; }
-        _awgStatusWindow = new AwgStatusWindow(() => _tunnelHealth.Details) { Owner = this };
+        _awgStatusWindow = OwnedWindowBehavior.Attach(new AwgStatusWindow(() => _tunnelHealth.Details), this);
         _awgStatusWindow.Closed += (_, _) => _awgStatusWindow = null;
         _awgStatusWindow.Show();
     }
@@ -629,7 +631,7 @@ public partial class MainWindow : Window
             _logWindow.Activate();
             return;
         }
-        _logWindow = new LogWindow(ShowDiagnostics) { Owner = this };
+        _logWindow = OwnedWindowBehavior.Attach(new LogWindow(ShowDiagnostics), this);
         _logWindow.Closed += (_, _) => _logWindow = null;
         _logWindow.Show();
     }
@@ -672,10 +674,7 @@ public partial class MainWindow : Window
 
     private bool OpenSettings()
     {
-        var dialog = new SettingsWindow(_settingsService, _settings)
-        {
-            Owner = this
-        };
+        var dialog = OwnedWindowBehavior.Attach(new SettingsWindow(_settingsService, _settings, SendTestNotification), this);
 
         var result = dialog.ShowDialog() == true;
         if (result)
@@ -688,6 +687,14 @@ public partial class MainWindow : Window
         }
 
         return result;
+    }
+
+    private void SendTestNotification()
+    {
+        if (_trayIcon is null) InitializeTray();
+        if (_trayIcon is null) throw new InvalidOperationException("Значок в трее недоступен.");
+        _trayIcon.ShowBalloonTip(5000, "VPN Monitor", "Тестовое уведомление. Проверка не меняет статусы клиентов и туннеля.", System.Windows.Forms.ToolTipIcon.Info);
+        App.Log("Windows test notification requested by user.");
     }
 
     private void AllClients_Click(object sender, RoutedEventArgs e)
@@ -1107,7 +1114,7 @@ public partial class MainWindow : Window
                 return;
             }
             var owner = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? this;
-            var window = new PingWindow(peer.Name, ip) { Owner = owner };
+            var window = OwnedWindowBehavior.Attach(new PingWindow(peer.Name, ip), owner);
             _pingWindows[ip] = window;
             window.Closed += (_, _) => _pingWindows.Remove(ip);
             window.Show();
@@ -1131,7 +1138,7 @@ public partial class MainWindow : Window
                 return;
             }
             var owner = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? this;
-            var window = new TraceRouteWindow(peer.Name, ip) { Owner = owner };
+            var window = OwnedWindowBehavior.Attach(new TraceRouteWindow(peer.Name, ip), owner);
             _traceWindows[ip] = window;
             window.Closed += (_, _) => _traceWindows.Remove(ip);
             window.Show();
@@ -1152,7 +1159,7 @@ public partial class MainWindow : Window
 
     private void ShowPeerHistory(Peer peer)
     {
-        var window = new PeerHistoryWindow(peer.Name, _peerHistory, peer.Id, _settings.SavePeerHistory, SaveHistoryOnExit) { Owner = this };
+        var window = OwnedWindowBehavior.Attach(new PeerHistoryWindow(peer.Name, _peerHistory, peer.Id, _settings.SavePeerHistory, SaveHistoryOnExit), this);
         window.Show();
     }
 
@@ -1169,7 +1176,7 @@ public partial class MainWindow : Window
                 return;
             }
             var owner = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? this;
-            var dialog = new SshConnectionWindow(peer.Name, ip, executable, _settings.SshUsername, _settings.SshPort) { Owner = owner };
+            var dialog = OwnedWindowBehavior.Attach(new SshConnectionWindow(peer.Name, ip, executable, _settings.SshUsername, _settings.SshPort), owner);
             if (dialog.ShowDialog() != true) return;
             using var process = Process.Start(SshService.CreateStartInfo(executable, ip, dialog.Username, dialog.Port));
             _settings.SshUsername = dialog.Username;
@@ -1278,7 +1285,7 @@ public partial class MainWindow : Window
     {
         if (!TryGetVpnIp(peer, out var ip)) return;
         var owner = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? this;
-        var dialog = new ShareOpenWindow(peer.Name, ip) { Owner = owner };
+        var dialog = OwnedWindowBehavior.Attach(new ShareOpenWindow(peer.Name, ip), owner);
         if (dialog.ShowDialog() == true) OpenSharedFolder(peer, dialog.ShareName);
     }
 
@@ -1383,7 +1390,7 @@ public partial class MainWindow : Window
         if (PeersGrid.SelectedItem is not Peer peer)
             return;
 
-        new PeerDetailsWindow(
+        OwnedWindowBehavior.Attach(new PeerDetailsWindow(
             peer,
             StartPing,
             StartRdp,
@@ -1398,10 +1405,7 @@ public partial class MainWindow : Window
             StartTraceRoute,
             OpenSharedFolder,
             ChooseSharedFolder,
-            StartSsh)
-        {
-            Owner = this
-        }.ShowDialog();
+            StartSsh), this).ShowDialog();
     }
 
     private void OpenVpnMonitorWeb_Click(object sender, RoutedEventArgs e)

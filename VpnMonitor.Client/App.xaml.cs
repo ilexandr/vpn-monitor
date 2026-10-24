@@ -8,12 +8,17 @@ namespace VpnMonitor.Client;
 
 public partial class App : System.Windows.Application
 {
-    private static readonly string LogDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "VpnMonitorClient",
-        "logs");
+    private static string LogPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "VpnMonitorClient", "logs", "client.log");
+    private static string LogDirectory => Path.GetDirectoryName(LogPath)!;
+    private readonly bool _startClient;
+    public App() : this(true) { }
+    public App(bool startClient) => _startClient = startClient;
 
-    private static readonly string LogPath = Path.Combine(LogDirectory, "client.log");
+    public static void ConfigureLogDirectory(string directory)
+    {
+        if (Current is not null) throw new InvalidOperationException("Configure logging before application startup.");
+        LogPath = Path.Combine(Path.GetFullPath(directory), "client.log");
+    }
 
     public static string ClientLogPath => LogPath;
 
@@ -21,6 +26,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        if (!_startClient) { base.OnStartup(e); return; }
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;

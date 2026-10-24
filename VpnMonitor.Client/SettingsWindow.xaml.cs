@@ -14,10 +14,13 @@ public partial class SettingsWindow : Window
     private readonly ClientSettings _settings;
     private readonly AutostartService _autostartService = new();
     private readonly RadminService _radminService = new();
+    private readonly Action? _testNotification;
 
-    public SettingsWindow(SettingsService settingsService, ClientSettings settings)
+    public SettingsWindow(SettingsService settingsService, ClientSettings settings, Action? testNotification = null)
     {
+        _testNotification = testNotification;
         InitializeComponent();
+        TestNotificationButton.IsEnabled = testNotification is not null;
         _settingsService = settingsService;
         _settings = settings;
         SettingsNavigation.SelectedIndex = 0;
@@ -26,6 +29,16 @@ public partial class SettingsWindow : Window
         RestoreWindowSize();
         Closing += SettingsWindow_Closing;
         BuildSettingsSearchIndex();
+    }
+
+    private void TestNotification_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _testNotification?.Invoke();
+            TestNotificationText.Text = "Запрос передан Windows. Если сообщения нет, проверьте разрешения уведомлений и режим «Не беспокоить».";
+        }
+        catch (Exception ex) { TestNotificationText.Text = "Не удалось отправить тестовое уведомление: " + ex.Message; }
     }
 
     private void LoadForm(ClientSettings settings)
@@ -266,7 +279,7 @@ public partial class SettingsWindow : Window
 
     private void AwgManage_Click(object sender, RoutedEventArgs e)
     {
-        new AwgStatusWindow { Owner = this }.ShowDialog();
+        OwnedWindowBehavior.Attach(new AwgStatusWindow(), this).ShowDialog();
     }
     private async void AwgPreview_Click(object sender, RoutedEventArgs e)
     {
@@ -276,7 +289,7 @@ public partial class SettingsWindow : Window
         {
             if (new FileInfo(dialog.FileName).Length > 256 * 1024) throw new ArgumentException("Профиль превышает 256 КБ.");
             var preview = AwgConfigPreview.Parse(await File.ReadAllTextAsync(dialog.FileName));
-            new AwgPreviewWindow(preview) { Owner = this }.ShowDialog();
+            OwnedWindowBehavior.Attach(new AwgPreviewWindow(preview), this).ShowDialog();
         }
         catch (ArgumentException ex) { MessageBox.Show(this, ex.Message, "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
         catch { MessageBox.Show(this, "Не удалось прочитать профиль AWG.", "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
@@ -317,7 +330,7 @@ public partial class SettingsWindow : Window
     }
     private void CustomActions_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new CustomActionsWindow(_customActions ?? _settings.CustomActions ?? []) { Owner = this };
+        var dialog = OwnedWindowBehavior.Attach(new CustomActionsWindow(_customActions ?? _settings.CustomActions ?? []), this);
         if (dialog.ShowDialog() == true) _customActions = dialog.Actions.ToList();
     }
     private void Save_Click(object sender, RoutedEventArgs e)

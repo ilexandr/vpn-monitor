@@ -10,6 +10,8 @@ namespace VpnMonitor.Client.Services;
 public sealed class ApiClient : IDisposable
 {
     private readonly HttpClient _http;
+    private int _transportRetries;
+    public int TransportRetryCount => Volatile.Read(ref _transportRetries);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -26,51 +28,44 @@ public sealed class ApiClient : IDisposable
             throw new ArgumentException("Некорректный адрес сервера.", nameof(serverUrl));
         }
 
-        _http = new HttpClient
+        _http = new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(3),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
+        })
         {
             BaseAddress = baseUri,
-            Timeout = TimeSpan.FromSeconds(12)
+            Timeout = Timeout.InfiniteTimeSpan
         };
 
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", token);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.68");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.69");
     }
 
-    public async Task<MeResponse> GetMeAsync(CancellationToken cancellationToken = default)
+    public Task<MeResponse> GetMeAsync(CancellationToken cancellationToken = default) => GetAsync<MeResponse>("api/v1/me", cancellationToken);
+    public Task<PeersResponse> GetPeersAsync(CancellationToken cancellationToken = default) => GetAsync<PeersResponse>("api/v1/peers", cancellationToken);
+    public Task<GroupsResponse> GetGroupsAsync(CancellationToken cancellationToken = default) => GetAsync<GroupsResponse>("api/v1/groups", cancellationToken);
+    public Task<SummaryResponse> GetSummaryAsync(CancellationToken cancellationToken = default) => GetAsync<SummaryResponse>("api/v1/summary", cancellationToken);
+
+    private async Task<T> GetAsync<T>(string path, CancellationToken cancellationToken) where T : new()
     {
-        using var response = await _http.GetAsync("api/v1/me", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        return await response.Content.ReadFromJsonAsync<MeResponse>(JsonOptions, cancellationToken)
-               ?? new MeResponse();
-    }
-
-    public async Task<PeersResponse> GetPeersAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await _http.GetAsync("api/v1/peers", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        return await response.Content.ReadFromJsonAsync<PeersResponse>(JsonOptions, cancellationToken)
-               ?? new PeersResponse();
-    }
-
-    public async Task<GroupsResponse> GetGroupsAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await _http.GetAsync("api/v1/groups", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        return await response.Content.ReadFromJsonAsync<GroupsResponse>(JsonOptions, cancellationToken)
-               ?? new GroupsResponse();
-    }
-
-    public async Task<SummaryResponse> GetSummaryAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await _http.GetAsync("api/v1/summary", cancellationToken);
-        await EnsureSuccessAsync(response, cancellationToken);
-
-        return await response.Content.ReadFromJsonAsync<SummaryResponse>(JsonOptions, cancellationToken)
-               ?? new SummaryResponse();
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(12));
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                using var response = await _http.GetAsync(path, timeout.Token);
+                await EnsureSuccessAsync(response, timeout.Token);
+                return await response.Content.ReadFromJsonAsync<T>(JsonOptions, timeout.Token) ?? new T();
+            }
+            catch (Exception ex) when (attempt == 0 && !timeout.IsCancellationRequested && ConnectionFailure.IsRetryable(ex))
+            {
+                Interlocked.Increment(ref _transportRetries);
+                await Task.Delay(150, timeout.Token);
+            }
+        }
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)

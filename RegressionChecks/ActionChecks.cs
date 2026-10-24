@@ -13,7 +13,7 @@ internal static class ActionChecks
     {
         if (System.Windows.Application.Current is null)
         {
-            var application = new App();
+            var application = new App(false);
             application.InitializeComponent();
         }
         System.Windows.Application.Current!.ShutdownMode = ShutdownMode.OnExplicitShutdown;

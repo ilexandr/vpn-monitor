@@ -31,6 +31,14 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private string _currentUsername = "—";
     private bool _isAdmin = true;
     private string? _restrictedGroup;
+    private string? _failureKind;
+    private DateTimeOffset _lastFailureLogged;
+    private int _consecutiveFailures;
+    private DateTimeOffset? _lastRecoveredAt;
+    private bool _disposed;
+    public int ConsecutiveFailures { get => _consecutiveFailures; private set => SetField(ref _consecutiveFailures, value); }
+    public DateTimeOffset? LastRecoveredAt { get => _lastRecoveredAt; private set => SetField(ref _lastRecoveredAt, value); }
+    public int TransportRetryCount => _api?.TransportRetryCount ?? 0;
 
     public ObservableCollection<Peer> Peers { get; } = [];
     public AwgDataState AwgState { get; } = new();
@@ -183,6 +191,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public void Configure(string serverUrl, string username, string password)
     {
+        ConsecutiveFailures = 0;
+        LastRecoveredAt = null;
+        _failureKind = null;
         MarkAwgDataStale();
         _api?.Dispose();
         _api = new ApiClient(serverUrl, username, password);
@@ -241,6 +252,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var api = _api ?? throw new InvalidOperationException("API client is not configured.");
 
         if (!await _refreshGate.WaitAsync(0, cancellationToken))
@@ -322,6 +334,13 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             ConfigurationName = peerResponse.Configuration ?? groupResponse.Configuration ?? "—";
             LastUpdated = FormatUpdated(peerResponse.Updated ?? groupResponse.Updated);
             ErrorMessage = null;
+            if (ConsecutiveFailures > 0)
+            {
+                App.Log($"API connection recovered after {ConsecutiveFailures} failed refresh cycles.");
+                LastRecoveredAt = DateTimeOffset.Now;
+            }
+            ConsecutiveFailures = 0;
+            _failureKind = null;
             AwgState.IsCurrent = true;
             OnPropertyChanged(nameof(OnlineCountText));
 
@@ -334,27 +353,35 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         catch (OperationCanceledException ex)
         {
             if (!ReferenceEquals(api, _api)) return;
-            MarkAwgDataStale();
-            // HttpClient.Timeout тоже выбрасывает OperationCanceledException.
-            // Не выпускаем его в async void обработчик таймера WPF.
-            ErrorMessage = "Сервер не ответил за 12 секунд. Проверьте VPN-туннель. Подключение будет повторено автоматически.";
-            App.Log("Refresh timed out; keeping last successful data and retrying on next refresh.", ex);
+            RecordFailure(ex);
         }
         catch (Exception ex)
         {
             if (!ReferenceEquals(api, _api)) return;
-            MarkAwgDataStale();
-            // Не очищаем последний успешно полученный список.
-            ErrorMessage = ex is System.Net.Http.HttpRequestException { StatusCode: null }
-                ? "Сервер недоступен. Проверьте VPN-туннель. Подключение будет повторено автоматически."
-                : ex.Message;
-            App.Log("Refresh failed; keeping last successful data and retrying on next refresh.", ex);
+            RecordFailure(ex);
         }
         finally
         {
             IsBusy = false;
+            OnPropertyChanged(nameof(TransportRetryCount));
             _refreshGate.Release();
+            if (_disposed) _refreshGate.Dispose();
         }
+    }
+
+    private void RecordFailure(Exception exception)
+    {
+        MarkAwgDataStale();
+        var failure = ConnectionFailure.From(exception);
+        ErrorMessage = failure.Message;
+        ConsecutiveFailures++;
+        var now = DateTimeOffset.Now;
+        if (_failureKind != failure.Kind || now - _lastFailureLogged >= TimeSpan.FromMinutes(5))
+        {
+            App.Log($"API connection failure ({failure.Kind}); {ConsecutiveFailures} consecutive failed refresh cycles. Keeping last successful list; automatic refresh continues.", exception);
+            _lastFailureLogged = now;
+        }
+        _failureKind = failure.Kind;
     }
 
     public void ApplySort(string member, bool descending)
@@ -478,7 +505,11 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public void Dispose()
     {
-        _api?.Dispose();
-        _refreshGate.Dispose();
+        if (_disposed) return;
+        _disposed = true;
+        var api = _api;
+        _api = null;
+        api?.Dispose();
+        if (!IsBusy) _refreshGate.Dispose();
     }
 }

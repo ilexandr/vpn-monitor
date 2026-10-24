@@ -8,6 +8,12 @@ namespace VpnMonitor.Client.Services;
 
 public sealed class SettingsService
 {
+    private static string? _defaultDirectory;
+    public static void ConfigureDefaultDirectory(string directory)
+    {
+        if (System.Windows.Application.Current is not null) throw new InvalidOperationException("Configure settings before application startup.");
+        _defaultDirectory = Path.GetFullPath(directory);
+    }
     private const int CryptProtectUiForbidden = 0x1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -49,33 +55,47 @@ public sealed class SettingsService
 
     public string SettingsDirectory { get; }
 
-    public SettingsService(string? directory = null) => SettingsDirectory = directory ?? Path.Combine(
+    public SettingsService(string? directory = null) => SettingsDirectory = directory ?? _defaultDirectory ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VpnMonitorClient");
 
     public string SettingsPath => Path.Combine(SettingsDirectory, "settings.json");
+    public string PreviousSettingsPath => Path.Combine(SettingsDirectory, "settings.previous.json");
 
     public ClientSettings Load()
     {
-        try
+        if (TryLoad(SettingsPath, out var settings)) return settings!;
+        if (TryLoad(PreviousSettingsPath, out settings))
         {
-            if (!File.Exists(SettingsPath))
-                return new ClientSettings();
-
-            var json = File.ReadAllText(SettingsPath, Encoding.UTF8);
-            return JsonSerializer.Deserialize<ClientSettings>(json, JsonOptions)
-                   ?? new ClientSettings();
+            App.Log("Primary settings unavailable; loaded the previous valid settings snapshot.");
+            return settings!;
         }
-        catch
-        {
-            return new ClientSettings();
-        }
+        return new ClientSettings();
     }
 
     public void Save(ClientSettings settings)
     {
         Directory.CreateDirectory(SettingsDirectory);
         var json = JsonSerializer.Serialize(settings, JsonOptions);
-        File.WriteAllText(SettingsPath, json, new UTF8Encoding(false));
+        var temporary = Path.Combine(SettingsDirectory, ".settings-" + Guid.NewGuid().ToString("N") + ".tmp");
+        try
+        {
+            File.WriteAllText(temporary, json, new UTF8Encoding(false));
+            if (TryLoad(SettingsPath, out _)) File.Replace(temporary, SettingsPath, PreviousSettingsPath, true);
+            else File.Move(temporary, SettingsPath, true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private static bool TryLoad(string path, out ClientSettings? settings)
+    {
+        try
+        {
+            using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            settings = JsonSerializer.Deserialize<ClientSettings>(input, JsonOptions);
+            return settings is not null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        { settings = null; return false; }
     }
 
     public string ProtectPassword(string password)

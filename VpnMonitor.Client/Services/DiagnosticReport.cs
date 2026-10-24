@@ -8,7 +8,7 @@ namespace VpnMonitor.Client.Services;
 
 public sealed record DiagnosticState(string Server, bool ApiCurrent, bool ApiBusy, string? ApiError, DateTimeOffset? ApiAttempt,
     DateTimeOffset? ApiSuccess, string Role, int Clients, bool ActiveChecks, int ActiveCheckSeconds,
-    bool HistorySaved, string TunnelHealth);
+    bool HistorySaved, string TunnelHealth, int ConsecutiveFailures, int TransportRetries, DateTimeOffset? RecoveredAt);
 
 public static class DiagnosticReport
 {
@@ -33,6 +33,9 @@ public static class DiagnosticReport
         Add("Последняя попытка API", state.ApiAttempt?.ToString("O"));
         Add("Последний успешный ответ API", state.ApiSuccess?.ToString("O"));
         Add("Ошибка API", state.ApiError);
+        Add("Подряд неудачных обновлений", state.ConsecutiveFailures);
+        Add("Повторов GET после разрыва соединения", state.TransportRetries);
+        Add("Последнее восстановление API", state.RecoveredAt?.ToString("O"));
         Add("Режим доступа", state.Role);
         Add("Клиентов в разрешённом списке", state.Clients);
         Add("Активные проверки", state.ActiveChecks ? $"Включены, каждые {state.ActiveCheckSeconds} сек." : "Отключены");
