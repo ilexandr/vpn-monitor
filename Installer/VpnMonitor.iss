@@ -120,8 +120,14 @@ begin
   begin
     UninstallProgressForm.StatusLabel.Caption := 'Закрытие VPN Monitor и менеджера во всех сеансах, остановка общего туннеля…';
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'PrepareRemove') then
-      RaiseException('Не удалось подготовить удаление: ' + ComponentError);
+    begin
+      SuppressibleMsgBox('Не удалось подготовить удаление: ' + ComponentError, mbError, MB_OK, IDOK);
+      Abort;
+    end;
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'Remove') then
-      RaiseException('Не удалось удалить регистрацию службы. Файлы профилей сохраняются.');
+    begin
+      SuppressibleMsgBox('Не удалось удалить регистрацию службы. Файлы профилей сохраняются.', mbError, MB_OK, IDOK);
+      Abort;
+    end;
   end;
 end;
