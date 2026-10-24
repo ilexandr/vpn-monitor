@@ -86,7 +86,7 @@ try{
  $binary='"'+(Join-Path $serviceRoot 'AwgPrototype.Host.exe')+'" --run-service "'+(Join-Path $dataRoot 'profile.dpapi')+'"'
  if(Get-Service $serviceName -ErrorAction SilentlyContinue){
   $existing=Get-CimInstance Win32_Service -Filter "Name='VpnMonitor.AwgPrototype'"
-  $change=Invoke-CimMethod -InputObject $existing -MethodName Change -Arguments @{PathName=$binary;StartMode='Manual'}
+  $change=Invoke-CimMethod -InputObject $existing -MethodName Change -Arguments @{PathName=$binary}
   if($change.ReturnValue -ne 0){throw ('Cannot update service location: '+$change.ReturnValue)}
  }else{
   New-Service -Name $serviceName -BinaryPathName $binary -DisplayName 'VPN Monitor AWG' -StartupType Manual |

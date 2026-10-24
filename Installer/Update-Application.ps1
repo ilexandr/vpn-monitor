@@ -23,6 +23,7 @@ function Write-State([string]$phase,[string]$message){
  if($form){$label.Text=$message;[Windows.Forms.Application]::DoEvents()}
 }
 function Prepare-Process($process){
+ if(!(Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue)){return}
  $pipe=[IO.Pipes.NamedPipeClientStream]::new('.','VpnMonitor.Update.'+$process.ProcessId,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous,[Security.Principal.TokenImpersonationLevel]::Impersonation)
  try{
   $pipe.Connect(10000)
@@ -115,6 +116,8 @@ try{
  while(!$installer.HasExited){[Windows.Forms.Application]::DoEvents();Start-Sleep -Milliseconds 250;$installer.Refresh()}
  $installer.WaitForExit()
  if($installer.ExitCode -ne 0){throw ('Installer failed: '+$installer.ExitCode)}
+ $resultVersion=[Diagnostics.FileVersionInfo]::GetVersionInfo($client)
+ if([version]::new($resultVersion.FileMajorPart,$resultVersion.FileMinorPart,$resultVersion.FileBuildPart) -ne $version){throw 'Installed version verification failed'}
  $installed=$true
 }catch{
  $failure=$_.Exception.Message
