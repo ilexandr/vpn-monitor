@@ -1,0 +1,17 @@
+[
+  {
+    "Url": "https://go.dev/dl/go1.25.0.windows-amd64.zip",
+    "Sha256": "89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b",
+    "Name": "go1.25.0.windows-amd64.zip"
+  },
+  {
+    "Url": "https://download.wireguard.com/windows-toolchain/distfiles/llvm-mingw-20201020-msvcrt-x86_64.zip",
+    "Sha256": "2e46593245090df96d15e360e092f0b62b97e93866e0162dca7f93b16722b844",
+    "Name": "llvm-mingw.zip"
+  },
+  {
+    "Url": "https://www.wintun.net/builds/wintun-0.14.1.zip",
+    "Sha256": "07c256185d6ee3652e09fa55c0b673e2624b565e02c4b9091c79ca7d2f24ef51",
+    "Name": "wintun.zip"
+  }
+]

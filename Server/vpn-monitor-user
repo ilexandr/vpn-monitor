@@ -1,0 +1,123 @@
+#!/opt/vpn-monitor/venv/bin/python3
+from __future__ import annotations
+
+import argparse
+import getpass
+import os
+import pwd
+import grp
+import sys
+from pathlib import Path
+
+sys.path.insert(0, "/opt/vpn-monitor")
+from auth_store import UserStore, normalize_identity  # noqa: E402
+
+ENV_FILE = Path("/etc/vpn-monitor.env")
+USERS_FILE = os.getenv("USERS_FILE", "/etc/vpn-monitor-users.json")
+
+
+def env_admin() -> str:
+    try:
+        for raw_line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            if key.strip() == "AUTH_USER":
+                return value.strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return "admin"
+
+
+def require_root() -> None:
+    if os.geteuid() != 0:
+        raise SystemExit("Запустите команду через sudo/root")
+
+
+def fix_permissions(path: Path) -> None:
+    os.chmod(path, 0o640)
+    try:
+        gid = grp.getgrnam("vpn-monitor").gr_gid
+        os.chown(path, 0, gid)
+    except KeyError:
+        pass
+
+
+def read_password(confirm: bool = True) -> str:
+    password = getpass.getpass("Пароль: ")
+    if not password:
+        raise SystemExit("Пустой пароль запрещён")
+    if confirm:
+        second = getpass.getpass("Повторите пароль: ")
+        if password != second:
+            raise SystemExit("Пароли не совпадают")
+    return password
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Управление пользователями VPN Monitor"
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("init", help="создать файл пользователей")
+    sub.add_parser("list", help="показать пользователей")
+
+    for name in ("add", "passwd", "delete", "enable", "disable"):
+        p = sub.add_parser(name)
+        p.add_argument("username")
+
+    args = parser.parse_args()
+    store = UserStore(USERS_FILE)
+
+    if args.command == "list":
+        print(f"{env_admin()}\tadmin\tenabled\t(env)")
+        for user in store.list_users():
+            print(
+                f"{user.username}\tgroup-user\t"
+                f"{'enabled' if user.enabled else 'disabled'}\t({USERS_FILE})"
+            )
+        return
+
+    require_root()
+
+    if args.command == "init":
+        store.ensure_exists()
+        fix_permissions(Path(USERS_FILE))
+        print(f"Готово: {USERS_FILE}")
+        return
+
+    username = args.username.strip()
+    if normalize_identity(username) == normalize_identity(env_admin()):
+        raise SystemExit(
+            "Это имя зарезервировано для администратора из /etc/vpn-monitor.env"
+        )
+
+    if args.command in ("add", "passwd"):
+        password = read_password()
+        existing = {
+            normalize_identity(x.username): x for x in store.list_users()
+        }.get(normalize_identity(username))
+        if args.command == "passwd" and existing is None:
+            raise SystemExit("Пользователь не найден")
+        store.upsert(username, password, enabled=True if existing is None else existing.enabled)
+        fix_permissions(Path(USERS_FILE))
+        print(f"Готово: {username}")
+        return
+
+    if args.command == "delete":
+        if not store.delete(username):
+            raise SystemExit("Пользователь не найден")
+        fix_permissions(Path(USERS_FILE))
+        print(f"Удалён: {username}")
+        return
+
+    enabled = args.command == "enable"
+    if not store.set_enabled(username, enabled):
+        raise SystemExit("Пользователь не найден")
+    fix_permissions(Path(USERS_FILE))
+    print(f"{username}: {'enabled' if enabled else 'disabled'}")
+
+
+if __name__ == "__main__":
+    main()

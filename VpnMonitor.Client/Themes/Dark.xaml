@@ -1,0 +1,51 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="#071426"/>
+    <SolidColorBrush x:Key="PanelBrush" Color="#0D203A"/>
+    <SolidColorBrush x:Key="HeaderBackgroundBrush" Color="#07182D"/>
+    <SolidColorBrush x:Key="HeaderTextBrush" Color="#F4FAFF"/>
+    <SolidColorBrush x:Key="HeaderMutedBrush" Color="#8FA8C3"/>
+    <SolidColorBrush x:Key="TextBrush" Color="#E6F1FB"/>
+    <SolidColorBrush x:Key="MutedBrush" Color="#89A1B9"/>
+    <SolidColorBrush x:Key="BorderBrush" Color="#1B4263"/>
+    <SolidColorBrush x:Key="GridLineBrush" Color="#173650"/>
+    <SolidColorBrush x:Key="InputBackgroundBrush" Color="#102943"/>
+    <SolidColorBrush x:Key="InputForegroundBrush" Color="#EAF6FF"/>
+    <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#102943"/>
+    <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#EAF6FF"/>
+    <SolidColorBrush x:Key="ButtonHoverBrush" Color="#173B5D"/>
+    <SolidColorBrush x:Key="ActiveButtonBrush" Color="#0B76E8"/>
+    <SolidColorBrush x:Key="ActiveButtonForegroundBrush" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="SidebarSelectedBrush" Color="#123A60"/>
+    <SolidColorBrush x:Key="SidebarSelectedTextBrush" Color="#72E7FF"/>
+    <SolidColorBrush x:Key="DataGridHeaderBrush" Color="#102943"/>
+    <SolidColorBrush x:Key="RowBackgroundBrush" Color="#0D203A"/>
+    <SolidColorBrush x:Key="RowHoverBrush" Color="#12304D"/>
+    <SolidColorBrush x:Key="SelectedRowBrush" Color="#164873"/>
+    <SolidColorBrush x:Key="SelectedRowTextBrush" Color="#F1FAFF"/>
+    <SolidColorBrush x:Key="SelectedIpBrush" Color="#8CF2FF"/>
+    <SolidColorBrush x:Key="TagBackgroundBrush" Color="#173957"/>
+    <SolidColorBrush x:Key="TagForegroundBrush" Color="#B6D1E8"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#168BFF"/>
+    <SolidColorBrush x:Key="AccentCyanBrush" Color="#16D1EA"/>
+    <SolidColorBrush x:Key="OnlineBrush" Color="#25E39C"/>
+    <SolidColorBrush x:Key="OfflineBrush" Color="#607991"/>
+    <SolidColorBrush x:Key="CopySuccessBrush" Color="#2BE6A1"/>
+    <SolidColorBrush x:Key="CopySuccessBackgroundBrush" Color="#123D38"/>
+    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#3A1C27"/>
+    <SolidColorBrush x:Key="ErrorBorderBrush" Color="#743348"/>
+    <SolidColorBrush x:Key="ErrorTextBrush" Color="#FFB9C7"/>
+    <SolidColorBrush x:Key="InfoBackgroundBrush" Color="#102943"/>
+    <SolidColorBrush x:Key="IpHoverBrush" Color="#123A58"/>
+    <SolidColorBrush x:Key="ScrollTrackBrush" Color="#091A2E"/>
+    <SolidColorBrush x:Key="ScrollThumbBrush" Color="#2B5575"/>
+    <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#3A7198"/>
+    <SolidColorBrush x:Key="ScrollThumbPressedBrush" Color="#16A7C4"/>
+    <SolidColorBrush x:Key="ToolbarBackgroundBrush" Color="#0B1D34"/>
+    <SolidColorBrush x:Key="FilterGroupBackgroundBrush" Color="#08182B"/>
+    <SolidColorBrush x:Key="ComboPopupBrush" Color="#0D203A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#0D203A"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}" Color="#102943"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#123A60"/>
+    <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#72E7FF"/>
+</ResourceDictionary>

@@ -1,0 +1,44 @@
+<Window x:Class="VpnMonitor.Client.PingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VPN Monitor — Ping" Width="650" Height="520" MinWidth="520" MinHeight="420"
+        WindowStartupLocation="CenterOwner" Icon="Assets/AWG_Monitor.ico"
+        Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+        SourceInitialized="Window_SourceInitialized" Loaded="Window_Loaded" Closed="Window_Closed">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="150"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock x:Name="PeerTitle" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="TargetText" Foreground="{DynamicResource MutedBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button x:Name="PauseButton" Content="Пауза" Padding="14,7" Margin="8,0,0,0" Click="Pause_Click"/>
+                <Button x:Name="ResetButton" Content="Сброс" Padding="14,7" Margin="8,0,0,0" Click="Reset_Click"/>
+            </StackPanel>
+        </Grid>
+        <StackPanel Grid.Row="1" Margin="0,16,0,10">
+            <TextBlock x:Name="StatisticsText" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock x:Name="PacketsText" Foreground="{DynamicResource MutedBrush}" Margin="0,5,0,0"/>
+        </StackPanel>
+        <Border Grid.Row="2" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6"
+                Background="{DynamicResource FilterGroupBackgroundBrush}" Padding="8">
+            <Grid>
+                <TextBlock x:Name="ScaleText" Foreground="{DynamicResource MutedBrush}" FontSize="11" VerticalAlignment="Top"/>
+                <Canvas x:Name="Graph" Margin="0,20,0,0" ClipToBounds="True" SizeChanged="Graph_SizeChanged"/>
+            </Grid>
+        </Border>
+        <ListBox x:Name="RepliesList" Grid.Row="3" Margin="0,10,0,8" BorderThickness="0"
+                 Background="{DynamicResource AppBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
+                 FontFamily="Consolas" FontSize="12" ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+        <TextBlock x:Name="RunStatus" Grid.Row="4" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap"
+                   Text="ICMP каждые 1 сек. • Таймаут 800 мс • Красные отметки — нет ответа"/>
+    </Grid>
+</Window>

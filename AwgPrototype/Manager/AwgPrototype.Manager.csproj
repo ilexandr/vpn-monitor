@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms><ApplicationManifest>app.manifest</ApplicationManifest><TargetFramework>net8.0-windows</TargetFramework><PlatformTarget>x64</PlatformTarget><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../VpnMonitor.Client/Models/AwgProfiles.cs" Link="AwgProfiles.cs"/>
+  <Compile Include="../../VpnMonitor.Client/Services/AwgConfigPreview.cs" Link="AwgConfigPreview.cs"/>
+  <Compile Include="../../VpnMonitor.Client/Services/AwgServiceStatus.cs" Link="AwgServiceStatus.cs"/>
+  <Compile Include="../Host/MachineProfile.cs" Link="MachineProfile.cs"/>
+  <Compile Include="../Host/RouteGuard.cs" Link="RouteGuard.cs"/>
+ </ItemGroup>
+</Project>

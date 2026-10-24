@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>VpnMonitor.Client</AssemblyName>
+    <RootNamespace>VpnMonitor.Client</RootNamespace>
+    <Version>0.1.58</Version>
+    <ApplicationIcon>Assets\AWG_Monitor.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Assets\AWG_Monitor.ico" />
+    <Resource Include="Assets\AWG_Monitor.ico" />
+  </ItemGroup>
+</Project>

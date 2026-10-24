@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>VPN Monitor</title>
+    <script>
+        (() => {
+            const saved = localStorage.getItem("vpnMonitor.theme");
+            const theme = saved === "dark" || saved === "light"
+                ? saved
+                : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="brand-block">
+        <img class="brand-icon"
+             src="/static/app-icon.png"
+             alt=""
+             aria-hidden="true">
+        <div>
+            <div class="brand-title">VPN Monitor</div>
+            <div class="brand-subtitle">
+                <span id="configName">awg0</span>
+                <span class="dot-separator">•</span>
+                <span id="userBadge">—</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="topbar-stats">
+        <span class="stat">
+            Всего <b id="headerTotal">0</b>
+        </span>
+        <span class="stat online-stat">
+            <span class="status-dot online"></span>
+            Online <b id="headerOnline">0</b>
+        </span>
+        <button id="themeToggle"
+                class="icon-button"
+                type="button"
+                title="Переключить тему"
+                aria-label="Переключить тему">
+            <span id="themeIcon">☾</span>
+        </button>
+    </div>
+</header>
+
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sidebar-section-title" id="clientsTitle">Клиенты</div>
+
+        <button class="sidebar-item active"
+                id="allGroup"
+                type="button"
+                data-group="">
+            <span>Все клиенты</span>
+            <span class="sidebar-count" id="allCount">0</span>
+        </button>
+
+        <div class="sidebar-section-title" id="groupsTitle">Группы</div>
+        <div id="groups"></div>
+
+        <div id="restrictedHint" class="restricted-hint hidden">
+            Доступ ограничен вашей группой.
+        </div>
+    </aside>
+
+    <main class="main">
+        <div id="error" class="error hidden"></div>
+
+        <section class="toolbar">
+            <div class="search-wrap">
+                <span class="search-icon" aria-hidden="true">⌕</span>
+                <input id="searchInput"
+                       type="search"
+                       placeholder="Поиск по имени, IP или группе"
+                       autocomplete="off">
+            </div>
+
+            <div class="filter-group" role="group" aria-label="Фильтр статуса">
+                <button class="filter active" type="button" data-filter="all">Все</button>
+                <button class="filter" type="button" data-filter="online">
+                    <span class="status-dot online"></span>Online
+                </button>
+                <button class="filter" type="button" data-filter="offline">
+                    <span class="status-dot offline"></span>Offline
+                </button>
+            </div>
+        </section>
+
+        <section class="content-card">
+            <div class="table-header">
+                <div class="col-status sortable" data-sort="status">
+                    Статус <span class="sort-arrow"></span>
+                </div>
+                <div class="col-name sortable" data-sort="name">
+                    Компьютер <span class="sort-arrow"></span>
+                </div>
+                <div class="col-ip sortable" data-sort="ip">
+                    VPN IP <span class="sort-arrow"></span>
+                </div>
+                <div class="col-handshake sortable" data-sort="handshake">
+                    Handshake <span class="sort-arrow"></span>
+                </div>
+                <div class="col-traffic sortable" data-sort="traffic">
+                    Трафик <span class="sort-arrow"></span>
+                </div>
+                <div class="col-tags sortable" data-sort="groups">
+                    Группы <span class="sort-arrow"></span>
+                </div>
+            </div>
+
+            <div id="peerList"></div>
+
+            <div id="emptyState" class="empty-state hidden">
+                Ничего не найдено
+            </div>
+        </section>
+
+        <div class="footer-status">
+            <span id="updated">Обновление: —</span>
+            <span id="accessInfo"></span>
+        </div>
+    </main>
+</div>
+
+<div id="modalBg" class="modal-bg" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-header">
+            <div>
+                <div class="modal-kicker">Клиент</div>
+                <div id="modalTitle" class="modal-title"></div>
+            </div>
+            <button id="modalClose"
+                    class="modal-close"
+                    type="button"
+                    aria-label="Закрыть">×</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+    </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

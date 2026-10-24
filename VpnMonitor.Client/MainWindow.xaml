@@ -1,0 +1,581 @@
+<Window x:Class="VpnMonitor.Client.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="VPN Monitor" Width="1180" Height="720"
+        MinWidth="720" MinHeight="500"
+        WindowStartupLocation="CenterScreen"
+        Icon="Assets/AWG_Monitor.ico"
+        Background="{DynamicResource AppBackgroundBrush}"
+        Foreground="{DynamicResource TextBrush}"
+        SourceInitialized="Window_SourceInitialized"
+        Loaded="Window_Loaded"
+        Closing="Window_Closing"
+        StateChanged="Window_StateChanged">
+    <Window.Resources>
+        <Style x:Key="HeaderLinkStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource HeaderTextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="3,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="HeaderLinkSurface"
+                                Background="Transparent"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentCyanBrush}"/>
+                                <Setter TargetName="HeaderLinkSurface" Property="Background" Value="#1400D8FF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="HeaderLinkSurface" Property="Opacity" Value="0.75"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="HeaderMutedLinkStyle" TargetType="Button" BasedOn="{StaticResource HeaderLinkStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource HeaderMutedBrush}"/>
+        </Style>
+
+        <Style x:Key="FilterButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="MinWidth" Value="54"/>
+            <Setter Property="Padding" Value="9,0"/>
+            <Setter Property="Margin" Value="1,0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="FilterBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="FilterBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="FilterBorder" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ToolbarActionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Background" Value="{DynamicResource FilterGroupBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ActionBorder" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ActionBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ActionBorder" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SidebarButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SidebarButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SidebarButtonBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="SidebarButtonBorder" Property="Background" Value="{DynamicResource SidebarSelectedBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FavoriteStarButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="FontSize" Value="17"/>
+            <Setter Property="Content" Value="☆"/>
+            <Setter Property="ToolTip" Value="Добавить в избранное"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="FavoriteSurface" Background="{TemplateBinding Background}" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="FavoriteSurface" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentCyanBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsFavorite}" Value="True">
+                                <Setter Property="Content" Value="★"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="ToolTip" Value="Убрать из избранного"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CopyIpButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="5,3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="IpBorder" Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="IpBorder" Property="Background" Value="{DynamicResource IpHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentCyanBrush}"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=IsSelected}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource SelectedIpBrush}"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource AppBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="52"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Compact header -->
+        <Border Grid.Row="0" Background="{DynamicResource HeaderBackgroundBrush}">
+            <Grid Margin="16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="VPN Monitor"
+                            Style="{StaticResource HeaderLinkStyle}"
+                            FontSize="18" FontWeight="SemiBold"
+                            ToolTip="Открыть VPN Monitor: http://10.20.0.1/"
+                            Click="OpenVpnMonitorWeb_Click"/>
+                    <TextBlock Text=" • " Foreground="{DynamicResource HeaderMutedBrush}" VerticalAlignment="Center" Margin="2,0"/>
+                    <Button Content="{Binding ConfigurationName, Mode=OneWay}"
+                            Style="{StaticResource HeaderMutedLinkStyle}"
+                            ToolTip="Открыть peers этой конфигурации в WGDashboard"
+                            Click="OpenWgDashboardPeers_Click"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="UserAccessBadge"
+                            Visibility="Collapsed"
+                            Background="{DynamicResource FilterGroupBackgroundBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="8,4"
+                            Margin="0,0,10,0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="UserAccessText"
+                                   Foreground="{DynamicResource HeaderMutedBrush}"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"/>
+                    </Border>
+                    <TextBlock Foreground="{DynamicResource OnlineBrush}" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Online / всего">
+                        <Run Text="● "/><Run Text="{Binding OnlineCount, Mode=OneWay}" FontWeight="Bold"/><Run Text="/"/><Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="Bold"/>
+                    </TextBlock>
+                    <Button x:Name="RefreshButton" Content="↻" Width="32" Height="30" Margin="0,0,6,0"
+                            ToolTip="Обновить сейчас" Click="Refresh_Click"/>
+                    <Button Content="AWG" Height="30" Padding="9,3" Margin="0,0,6,0" Click="AwgStatus_Click" ToolTip="Состояние общего туннеля компьютера"/>
+                    <Button Content="Журнал" Height="30" Padding="9,3" Margin="0,0,6,0" Click="Log_Click"/>
+                    <Button Content="CSV" Height="30" Padding="9,3" Margin="0,0,6,0" ToolTip="Экспорт текущего списка клиентов с учётом фильтра и сортировки" Click="ExportPeers_Click"/>
+                    <Button Content="⚙" Width="32" Height="30" ToolTip="Настройки" Click="Settings_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Body -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="210"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
+            <Border Grid.Column="0" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="8">
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock x:Name="ClientsSectionTitle" Text="КЛИЕНТЫ" Foreground="{DynamicResource MutedBrush}" FontSize="11" FontWeight="Bold" Margin="10,7,0,7"/>
+                        <Button x:Name="AllClientsButton" Style="{StaticResource SidebarButtonStyle}"
+                                Click="AllClients_Click">
+                            <Grid Margin="7,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Все клиенты" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="1" Text="{Binding TotalCount, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Button>
+                        <Button x:Name="FavoriteClientsButton" Style="{StaticResource SidebarButtonStyle}"
+                                Click="FavoriteClients_Click" Margin="0,2,0,0">
+                            <Grid Margin="7,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="★  Избранное" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="1" Text="{Binding FavoriteCount, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Button>
+                        <TextBlock x:Name="GroupsSectionTitle" Text="ГРУППЫ" Foreground="{DynamicResource MutedBrush}" FontSize="11" FontWeight="Bold" Margin="10,17,0,7"/>
+                    </StackPanel>
+
+                    <ListBox x:Name="GroupsList" ItemsSource="{Binding Groups}" BorderThickness="0"
+                             Background="Transparent" SelectionChanged="GroupsList_SelectionChanged"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="8,6"/>
+                                <Setter Property="Margin" Value="0,1"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListBoxItem">
+                                            <Border x:Name="GroupItemBorder"
+                                                    Background="{TemplateBinding Background}"
+                                                    CornerRadius="4"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                                  VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="GroupItemBorder" Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="GroupItemBorder" Property="Background" Value="{DynamicResource SidebarSelectedBrush}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource SidebarSelectedTextBrush}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CountText}" Foreground="{DynamicResource MutedBrush}" Margin="8,0,0,0"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <!-- Main -->
+            <Grid Grid.Column="1" Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Compact control bar -->
+                <Border Grid.Row="0"
+                        Background="{DynamicResource ToolbarBackgroundBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="6"
+                        Margin="0,0,0,9">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="120"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox Grid.Column="0" x:Name="SearchBox" Height="32" Padding="9,5"
+                                 BorderThickness="0"
+                                 Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Поиск по имени, IP, endpoint, заметке и группе. Слова через пробел: должны найтись все. Например: Prestig BH."/>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0">
+                            <Border Background="{DynamicResource FilterGroupBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}"
+                                    BorderThickness="1" CornerRadius="7" Padding="2">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="FilterAllButton" Content="Все" Tag="all"
+                                            Style="{StaticResource FilterButtonStyle}" Click="Filter_Click"/>
+                                    <Button x:Name="FilterOnlineButton" Content="● Online" Tag="online"
+                                            Style="{StaticResource FilterButtonStyle}" Click="Filter_Click"/>
+                                    <Button x:Name="FilterOfflineButton" Content="○ Offline" Tag="offline"
+                                            Style="{StaticResource FilterButtonStyle}" Click="Filter_Click"/>
+                                </StackPanel>
+                            </Border>
+                            <Button x:Name="ColumnsButton" Content="☷" Margin="6,0,0,0"
+                                    Style="{StaticResource ToolbarActionButtonStyle}"
+                                    ToolTip="Показать/скрыть колонки" Click="Columns_Click"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Row="1" Visibility="{Binding ErrorVisibility, Mode=OneWay}"
+                        Background="{DynamicResource ErrorBackgroundBrush}" BorderBrush="{DynamicResource ErrorBorderBrush}"
+                        BorderThickness="1" CornerRadius="6" Padding="9" Margin="0,0,0,9">
+                    <TextBlock Text="{Binding ErrorMessage, Mode=OneWay}" Foreground="{DynamicResource ErrorTextBrush}" TextWrapping="Wrap"/>
+                </Border>
+
+                <Border Grid.Row="2" Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8">
+                    <DataGrid x:Name="PeersGrid" ItemsSource="{Binding PeersView}"
+                              Background="{DynamicResource PanelBrush}" Foreground="{DynamicResource TextBrush}"
+                              AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource GridLineBrush}"
+                              BorderThickness="0" ColumnHeaderHeight="36"
+                              CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="True"
+                              CanUserResizeColumns="True" CanUserSortColumns="True"
+                              ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                              SelectionMode="Single" SelectionUnit="FullRow"
+                              Sorting="PeersGrid_Sorting"
+                              PreviewMouseLeftButtonDown="PeersGrid_PreviewMouseLeftButtonDown"
+                              PreviewMouseRightButtonDown="PeersGrid_PreviewMouseRightButtonDown"
+                              MouseDoubleClick="PeersGrid_MouseDoubleClick">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="MinHeight" Value="54"/>
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                <Setter Property="Background" Value="{DynamicResource RowBackgroundBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource RowHoverBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="{DynamicResource SelectedRowBrush}"/>
+                                        <Setter Property="Foreground" Value="{DynamicResource SelectedRowTextBrush}"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                <Setter Property="Padding" Value="8,4"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Foreground" Value="{Binding RelativeSource={RelativeSource AncestorType=DataGridRow}, Path=Foreground}"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                            </Style>
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn x:Name="StatusColumn" Header="AWG" Width="46" SortMemberPath="IsOnline">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Width="10" Height="10" CornerRadius="5" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Setter Property="Background" Value="{DynamicResource OfflineBrush}"/>
+                                                    <Setter Property="ToolTip" Value="{Binding StatusText}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsOnline}" Value="True">
+                                                            <Setter Property="Background" Value="{DynamicResource OnlineBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding AwgState.IsCurrent}" Value="False">
+                                                            <Setter Property="Background" Value="{DynamicResource MutedBrush}"/>
+                                                            <Setter Property="ToolTip" Value="Нет актуальных данных AWG. Ожидание связи с сервером."/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="ReachabilityColumn" Header="Доступность" Width="125" CanUserSort="False">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Reachability.Text}" ToolTip="{Binding Reachability.ToolTip}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Reachability.IsReachable}" Value="True">
+                                                            <Setter Property="Foreground" Value="{DynamicResource OnlineBrush}"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Reachability.IsReachable}" Value="False">
+                                                            <Setter Property="Foreground" Value="{DynamicResource OfflineBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="ComputerColumn" Header="Компьютер" Width="2*" MinWidth="170" SortMemberPath="Name">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid VerticalAlignment="Center">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button Grid.Column="0" Style="{StaticResource FavoriteStarButtonStyle}"
+                                                    Tag="{Binding}" Click="FavoriteButton_Click"/>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding Notes}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="VpnIpColumn" Header="VPN IP" Width="125" SortMemberPath="VpnIpSortKey">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding VpnIp}" Tag="{Binding VpnIp}"
+                                                HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                Style="{StaticResource CopyIpButtonStyle}"
+                                                ToolTip="Нажмите, чтобы скопировать"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="HandshakeColumn" Header="Handshake" Width="120" SortMemberPath="HandshakeSortKey">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding HandshakeText}" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="TrafficColumn" Header="Трафик" Width="145" SortMemberPath="TrafficTotal">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding TrafficText}" VerticalAlignment="Center" TextWrapping="NoWrap"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn x:Name="GroupsColumn" Header="Группы" Width="1.4*" MinWidth="150" SortMemberPath="GroupsText">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <ItemsControl ItemsSource="{Binding Groups}" VerticalAlignment="Center" Margin="0,2">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Background="{DynamicResource TagBackgroundBrush}" CornerRadius="4" Padding="6,3" Margin="0,2,4,2">
+                                                        <TextBlock Text="{Binding}" Foreground="{DynamicResource TagForegroundBrush}" FontSize="11"/>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <!-- Status bar keeps update time visible even in a narrow window -->
+                <Grid Grid.Row="3" Margin="2,7,2,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="StatusHintText" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis"
+                                   Text="★ — избранное • двойной клик — карточка • ПКМ — действия • VPN IP — копирование • крестик — в трей"/>
+                        <TextBlock Text="{Binding AwgState.Message}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="12,0,0,0">
+                        <Run Text="Обновлено: "/><Run Text="{Binding LastUpdated, Mode=OneWay}"/>
+                    </TextBlock>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
