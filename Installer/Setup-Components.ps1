@@ -127,8 +127,12 @@ try{
  if($LASTEXITCODE -ne 0){throw 'Cannot configure service SID'}
  & sc.exe sdset $serviceName 'D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;LC;;;AU)' | Out-Null
  if($LASTEXITCODE -ne 0){throw 'Cannot configure service permissions'}
- New-Item -Path 'HKLM:\Software\VpnMonitor' -Force | Out-Null
- Set-ItemProperty -Path 'HKLM:\Software\VpnMonitor' -Name InstallRoot -Value $expected
+ # Preserve an existing key: New-Item -Force can delete it while setup holds it open.
+ $baseKey=[Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,[Microsoft.Win32.RegistryView]::Registry64)
+ try{
+  $installKey=$baseKey.CreateSubKey('Software\VpnMonitor',$true)
+  try{$installKey.SetValue('InstallRoot',$expected,[Microsoft.Win32.RegistryValueKind]::String)}finally{$installKey.Dispose()}
+ }finally{$baseKey.Dispose()}
  # A fresh elevated setup process can restore a tunnel for older coordinators too.
  # Only honor the journal belonging to this installer's own process ancestry.
  $ancestors=@();$ancestor=$PID

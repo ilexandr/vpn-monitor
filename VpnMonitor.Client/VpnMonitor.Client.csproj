@@ -8,7 +8,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>VpnMonitor.Client</AssemblyName>
     <RootNamespace>VpnMonitor.Client</RootNamespace>
-    <Version>0.1.64</Version>
+    <Version>0.1.65</Version>
     <ApplicationIcon>Assets\AWG_Monitor.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

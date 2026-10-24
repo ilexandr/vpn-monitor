@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.64"
+ #define AppVersion "0.1.65"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -65,6 +65,7 @@ Name: "{commonprograms}\VPN Monitor\Удалить VPN Monitor"; Filename: "{uni
 
 [Code]
 var ComponentError: String;
+    ComponentInstallFailed: Boolean;
 
 function RunComponents(ScriptPath, Phase: String): Boolean;
 var Code: Integer;
@@ -97,7 +98,15 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'Install') then
+    begin
+      ComponentInstallFailed := True;
       RaiseException('Не удалось настроить компоненты службы. Проверьте журнал установки; профили пользователей сохранены.');
+    end;
+end;
+
+function GetCustomSetupExitCode: Integer;
+begin
+  if ComponentInstallFailed then Result := 20 else Result := 0;
 end;
 
 function InitializeUninstall: Boolean;
