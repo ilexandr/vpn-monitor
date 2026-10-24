@@ -1,7 +1,8 @@
 param(
  [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','PrepareRemove','Remove')][string]$Phase,
  [Parameter(Mandatory=$true)][string]$Root,
- [string]$DiagnosticPath
+ [string]$DiagnosticPath,
+ [string]$SetupSource
 )
 $ErrorActionPreference='Stop'
 $serviceName='VpnMonitor.AwgPrototype'
@@ -133,21 +134,18 @@ try{
   $installKey=$baseKey.CreateSubKey('Software\VpnMonitor',$true)
   try{$installKey.SetValue('InstallRoot',$expected,[Microsoft.Win32.RegistryValueKind]::String)}finally{$installKey.Dispose()}
  }finally{$baseKey.Dispose()}
- # A fresh elevated setup process can restore a tunnel for older coordinators too.
- # Only honor the journal belonging to this installer's own process ancestry.
- $ancestors=@();$ancestor=$PID
- for($depth=0;$depth -lt 6 -and $ancestor;$depth++){
-  $ancestors+=$ancestor
-  $parent=Get-CimInstance Win32_Process -Filter ("ProcessId="+$ancestor) -ErrorAction SilentlyContinue
-  if(!$parent -or $parent.ParentProcessId -eq $ancestor){break};$ancestor=$parent.ParentProcessId
- }
+ # Bind recovery to the actual source EXE in an administrator-only update stage.
+ # Elevation can reparent setup processes, so process ancestry alone is unreliable.
  foreach($journal in Get-ChildItem -LiteralPath $publicRoot -Filter 'update-*.json' -ErrorAction SilentlyContinue){
   try{
    $update=Get-Content -LiteralPath $journal.FullName -Raw | ConvertFrom-Json
    $id=[Guid]::Empty
-   if($update.Phase -ne 'Installing' -or !$update.ServiceWasRunning -or !$update.InstallerPid -or $update.InstallerPid -notin $ancestors -or ![Guid]::TryParseExact($update.Id,'N',[ref]$id)){continue}
+   if(!$SetupSource -or $update.Phase -ne 'Installing' -or !$update.ServiceWasRunning -or !$update.InstallerPid -or ![Guid]::TryParseExact($update.Id,'N',[ref]$id)){continue}
    $updateStage=Join-Path $env:ProgramData ('VpnMonitor\Updates\'+$id.ToString('N'))
    if(!(Test-Path -LiteralPath $updateStage)){continue}
+   $version=[Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $serviceRoot 'VpnMonitor.Client.exe'))
+   $expectedSource=Join-Path $updateStage ('VpnMonitor-Setup-'+$version.FileMajorPart+'.'+$version.FileMinorPart+'.'+$version.FileBuildPart+'-win-x64.exe')
+   if([IO.Path]::GetFullPath($SetupSource) -ne $expectedSource -or !(Get-Process -Id $update.InstallerPid -ErrorAction SilentlyContinue) -or !(Get-Process -Id $update.WorkerPid -ErrorAction SilentlyContinue)){continue}
    . (Join-Path $PSScriptRoot 'Service-Recovery.ps1')
    Restore-MonitorTunnel $true $binary (Join-Path $updateStage 'installer-service-recovery.jsonl')
   }catch{Write-Warning ('Tunnel recovery diagnostics: '+$_.Exception.Message)}

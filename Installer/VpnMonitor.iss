@@ -75,7 +75,7 @@ begin
   DiagnosticPath := ExpandConstant('{tmp}\vpnmonitor-component-error.txt');
   DeleteFile(DiagnosticPath);
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '"',
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '" -SetupSource "' + ExpandConstant('{srcexe}') + '"',
     '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
   ComponentError := '';
   if not Result then begin
