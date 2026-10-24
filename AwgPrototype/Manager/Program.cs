@@ -11,7 +11,7 @@ internal static class Program
 {
     private static readonly string Data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "VpnMonitor", "AwgPrototype");
     private static readonly string CatalogFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "VpnMonitor", "AwgStatus", "profiles.json");
-    private static readonly string Engine = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VpnMonitor", "AwgPrototype", "tunnel.dll");
+    private static readonly string Engine = Path.Combine(AppContext.BaseDirectory, "tunnel.dll");
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte Validate(IntPtr text, IntPtr name);
     [DllImport("kernel32.dll", SetLastError=true)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetDefaultDllDirectories(uint flags);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern IntPtr AddDllDirectory(string path);

@@ -22,6 +22,36 @@ foreach($name in @('tunnel.dll','wintun.dll')){
  if(!(Test-Path -LiteralPath $path)){throw "Native component missing: $name"}
  Copy-Item -LiteralPath $path -Destination (Join-Path $stage "AwgPrototype\$name")
 }
+# Merge identical runtime files once; reject any conflicting dependency versions.
+$app=Join-Path $stage 'App'
+$app=[IO.Path]::GetFullPath($app)
+if(!$app.StartsWith([IO.Path]::GetFullPath($stage)+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Invalid staging path'}
+if(Test-Path -LiteralPath $app){
+ if((Get-Item -LiteralPath $app -Force).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Reparse point in staging'}
+ Remove-Item -LiteralPath $app -Recurse -Force
+}
+New-Item -ItemType Directory -Force -Path $app | Out-Null
+foreach($component in @('Client','AwgPrototype')){
+ $source=Join-Path $stage $component
+ foreach($file in Get-ChildItem -LiteralPath $source -Recurse -File){
+  $relative=$file.FullName.Substring($source.Length+1)
+  $target=Join-Path $app $relative
+  if(Test-Path -LiteralPath $target){
+   if((Get-FileHash $file.FullName).Hash -ne (Get-FileHash $target).Hash){throw "Conflicting shared dependency: $relative"}
+  }else{
+   New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+   Copy-Item -LiteralPath $file.FullName -Destination $target
+  }
+ }
+}
+$legacyCleanup=Join-Path $stage 'legacy-cleanup.iss'
+$legacyEntries=@()
+foreach($file in Get-ChildItem (Join-Path $stage 'AwgPrototype') -Recurse -File){
+ $relative=$file.FullName.Substring((Join-Path $stage 'AwgPrototype').Length+1)
+ $legacyEntries+='Type: files; Name: "{app}\AwgPrototype\'+$relative+'"'
+}
+$legacyEntries+='Type: dirifempty; Name: "{app}\AwgPrototype"'
+[IO.File]::WriteAllLines($legacyCleanup,$legacyEntries)
 if((Get-AuthenticodeSignature (Join-Path $stage 'AwgPrototype\wintun.dll')).Status -ne 'Valid'){throw 'Wintun signature invalid'}
 $licenses=Join-Path $stage 'Licenses'
 New-Item -ItemType Directory -Force -Path $licenses | Out-Null
@@ -54,7 +84,7 @@ if($forbidden){throw 'Forbidden personal data in installer staging'}
 $info=@{Version=$version;SourceCommit=(git -C $root rev-parse HEAD);EngineCommit='e90531d15802cb976773f3b63443bc281f738ca3';Native=@{}}
 foreach($name in @('tunnel.dll','wintun.dll')){$info.Native[$name]=(Get-FileHash (Join-Path $stage "AwgPrototype\$name")).Hash}
 $info | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $stage 'Licenses\build-info.json')
-& $Compiler "/DAppVersion=$version" "/DStageDir=$stage" "/DReleaseDir=$release" (Join-Path $PSScriptRoot 'VpnMonitor.iss')
+& $Compiler "/DAppVersion=$version" "/DStageDir=$stage" "/DReleaseDir=$release" "/DLegacyCleanup=$legacyCleanup" (Join-Path $PSScriptRoot 'VpnMonitor.iss')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
 $exe=Join-Path $release "VpnMonitor-Setup-$version-win-x64.exe"
 $hash=(Get-FileHash $exe).Hash.ToLowerInvariant()

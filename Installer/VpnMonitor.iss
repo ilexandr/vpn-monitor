@@ -1,8 +1,11 @@
 #ifndef AppVersion
- #define AppVersion "0.1.60"
+ #define AppVersion "0.1.61"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
+#endif
+#ifndef LegacyCleanup
+ #define LegacyCleanup "..\artifacts\installer\legacy-cleanup.iss"
 #endif
 #ifndef ReleaseDir
  #define ReleaseDir "..\artifacts\releases"
@@ -14,8 +17,8 @@ AppVersion={#AppVersion}
 AppPublisher=ilexandr
 AppPublisherURL=https://github.com/ilexandr/vpn-monitor
 DefaultDirName={autopf}\VpnMonitor
-DisableDirPage=yes
-UsePreviousAppDir=no
+DisableDirPage=no
+UsePreviousAppDir=yes
 DefaultGroupName=VPN Monitor
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
@@ -36,15 +39,23 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "{#StageDir}\Client\*"; DestDir: "{app}\Client"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#StageDir}\AwgPrototype\*"; DestDir: "{app}\AwgPrototype"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#StageDir}\App\*"; DestDir: "{app}\Client"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "{#StageDir}\Licenses\*"; DestDir: "{app}\Licenses"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Setup-Components.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Setup-Components.ps1"; Flags: dontcopy
 
+[InstallDelete]
+#include LegacyCleanup
+
+[Registry]
+Root: HKLM; Subkey: "Software\VpnMonitor"; Flags: uninsdeletekey
+
+[Run]
+Filename: "{app}\Client\VpnMonitor.Client.exe"; Description: "Запустить VPN Monitor"; Flags: nowait postinstall skipifsilent runasoriginaluser
+
 [Icons]
 Name: "{commonprograms}\VPN Monitor\VPN Monitor"; Filename: "{app}\Client\VpnMonitor.Client.exe"
-Name: "{commonprograms}\VPN Monitor\Управление общими туннелями AWG"; Filename: "{app}\AwgPrototype\AwgPrototype.Manager.exe"
+Name: "{commonprograms}\VPN Monitor\Управление общими туннелями AWG"; Filename: "{app}\Client\AwgPrototype.Manager.exe"
 Name: "{commonprograms}\VPN Monitor\Удалить VPN Monitor"; Filename: "{uninstallexe}"
 
 [Code]
