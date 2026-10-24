@@ -45,7 +45,7 @@ foreach($module in $modules){
  if($parts.Count -lt 3 -or !$parts[2]){continue}
  $safe=$parts[0] -replace '[^A-Za-z0-9._-]','_'
  foreach($file in Get-ChildItem -LiteralPath $parts[2] -File | Where-Object Name -match '^(LICENSE|COPYING|NOTICE|PATENTS)'){
-  Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $licenses ($safe+'-'+$file.Name))
+  Copy-Item -Force -LiteralPath $file.FullName -Destination (Join-Path $licenses ($safe+'-'+$file.Name))
  }
 }
 $moduleNames | Set-Content (Join-Path $licenses 'Go-Modules.txt')

@@ -1,18 +1,18 @@
 param(
  [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','Remove')][string]$Phase,
- [Parameter(Mandatory=$true)][string]$Root
+ [Parameter(Mandatory=$true)][string]$Root,
+ [string]$DiagnosticPath
 )
 $ErrorActionPreference='Stop'
 $serviceName='VpnMonitor.AwgPrototype'
 $expected=[IO.Path]::GetFullPath((Join-Path $env:ProgramFiles 'VpnMonitor')).TrimEnd('\')
-if([IO.Path]::GetFullPath($Root).TrimEnd('\') -ne $expected){throw 'Unsupported installation directory'}
 $serviceRoot=Join-Path $expected 'AwgPrototype'
 $dataRoot=Join-Path $env:ProgramData 'VpnMonitor\AwgPrototype'
 $publicRoot=Join-Path $env:ProgramData 'VpnMonitor\AwgStatus'
 function Assert-NoReparse([string]$path){
  $current=$path
  while($current){
-  if((Test-Path -LiteralPath $current) -and ((Get-Item -LiteralPath $current).Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Reparse point in installation path'}
+  if((Test-Path -LiteralPath $current) -and ((Get-Item -LiteralPath $current -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)){throw 'Reparse point in installation path'}
   $next=Split-Path $current -Parent
   if($next -eq $current){break};$current=$next
  }
@@ -41,6 +41,7 @@ function Protect-Directory([string]$path,[bool]$readUsers){
  Set-Acl -LiteralPath $path -AclObject $acl
 }
 try{
+ if([IO.Path]::GetFullPath($Root).TrimEnd('\') -ne $expected){throw 'Unsupported installation directory'}
  Assert-NoReparse $expected;Assert-NoReparse $dataRoot;Assert-NoReparse $publicRoot
  Assert-Idle
  if($Phase -eq 'Preflight'){Write-Output 'Preflight passed';exit 0}
@@ -78,6 +79,7 @@ try{
  Write-Output 'Installed. Shared tunnel remains stopped.'
  exit 0
 }catch{
+ if($DiagnosticPath){[IO.File]::WriteAllText($DiagnosticPath, $_.Exception.Message, [Text.Encoding]::UTF8)}
  Write-Error $_.Exception.Message -ErrorAction Continue
  exit 20
 }

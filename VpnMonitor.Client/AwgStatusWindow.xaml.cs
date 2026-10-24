@@ -5,8 +5,11 @@ namespace VpnMonitor.Client;
 public partial class AwgStatusWindow : Window
 {
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(2) };
-    public AwgStatusWindow()
+    private readonly Func<string>? _health;
+    public AwgStatusWindow() : this(null) { }
+    public AwgStatusWindow(Func<string>? health)
     {
+        _health = health;
         InitializeComponent();
         PreviewKeyDown += (_, e) =>
         {
@@ -25,6 +28,7 @@ public partial class AwgStatusWindow : Window
         {
             var status = AwgServiceStatus.Read();
             ServiceStatus.Text = status.Text;
+            HealthText.Text = _health?.Invoke() ?? "Проверка доступности выполняется в основном окне приложения.";
             var catalog = AwgProfileCatalogReader.Read();
             var selected = catalog.Profiles.FirstOrDefault(p => p.Id == catalog.SelectedId);
             SelectedProfileText.Text = selected is null ? "Профиль не выбран" : $"Выбран для подключения: {selected.Name}";

@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.59"
+ #define AppVersion "0.1.60"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -48,19 +48,32 @@ Name: "{commonprograms}\VPN Monitor\Управление общими тунне
 Name: "{commonprograms}\VPN Monitor\Удалить VPN Monitor"; Filename: "{uninstallexe}"
 
 [Code]
+var ComponentError: String;
+
 function RunComponents(ScriptPath, Phase: String): Boolean;
 var Code: Integer;
+    DiagnosticPath: String;
+    DiagnosticBytes: AnsiString;
 begin
+  DiagnosticPath := ExpandConstant('{tmp}\vpnmonitor-component-error.txt');
+  DeleteFile(DiagnosticPath);
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -NonInteractive -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '"',
+    '-NoProfile -NonInteractive -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '"',
     '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
+  ComponentError := '';
+  if not Result then begin
+    if LoadStringFromFile(DiagnosticPath, DiagnosticBytes) then
+      ComponentError := UTF8Decode(DiagnosticBytes);
+    if ComponentError = '' then ComponentError := 'PowerShell: exit code ' + IntToStr(Code);
+    Log('VPN Monitor ' + Phase + ': ' + ComponentError);
+  end;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   ExtractTemporaryFile('Setup-Components.ps1');
   if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'Preflight') then
-    Result := 'Отключите общий AWG-туннель и закройте VPN Monitor и менеджер во всех сеансах Windows. Рабочие подключения автоматически не останавливаются.'
+    Result := 'Проверка установки: ' + ComponentError
   else Result := '';
 end;
 
