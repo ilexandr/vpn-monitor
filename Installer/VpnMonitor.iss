@@ -14,6 +14,8 @@
 AppId={{3A7D1DC4-7D80-4B3B-B17D-0A69BFD956CC}
 AppName=VPN Monitor
 AppVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}
+VersionInfoProductVersion={#AppVersion}
 AppPublisher=ilexandr
 AppPublisherURL=https://github.com/ilexandr/vpn-monitor
 DefaultDirName={autopf}\VpnMonitor

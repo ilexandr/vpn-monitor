@@ -87,6 +87,9 @@ $info | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $stage 'Licenses\build-
 & $Compiler "/DAppVersion=$version" "/DStageDir=$stage" "/DReleaseDir=$release" "/DLegacyCleanup=$legacyCleanup" (Join-Path $PSScriptRoot 'VpnMonitor.iss')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
 $exe=Join-Path $release "VpnMonitor-Setup-$version-win-x64.exe"
+$metadata=[Diagnostics.FileVersionInfo]::GetVersionInfo($exe)
+$numericVersion=[version]::new($metadata.FileMajorPart,$metadata.FileMinorPart,$metadata.FileBuildPart)
+if($numericVersion -ne [version]$version){throw "Installer numeric FileVersion mismatch: $numericVersion"}
 $hash=(Get-FileHash $exe).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText((Join-Path $release 'SHA256SUMS'),"$hash  "+[IO.Path]::GetFileName($exe)+[Environment]::NewLine)
 Write-Output "Installer: $exe"
