@@ -21,15 +21,17 @@ namespace VpnMonitor.Client;
 
 public partial class MainWindow : Window
 {
-    private readonly SettingsService _settingsService = new();
+    private readonly SettingsService _settingsService;
     private ClientSettings _settings;
     private readonly MainViewModel _viewModel = new();
     private readonly PeerHistory _peerHistory = new();
-    private readonly PeerHistoryArchive _historyArchive = new();
+    private readonly PeerHistoryArchive _historyArchive;
     private readonly DispatcherTimer _historySaveTimer = new() { Interval = TimeSpan.FromSeconds(15) };
     private string? _historyScope;
     private bool _historyLoaded, _historyLoading, _historyDirty, _historySaving, _historyPersistence;
     private long _historyRevision;
+    private long _connectionRevision;
+    private bool _dataRefreshRunning;
     private readonly TunnelHealthMonitor _tunnelHealth = new();
     private readonly DispatcherTimer _tunnelHealthTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly CancellationTokenSource _tunnelHealthCancellation = new();
@@ -59,24 +61,17 @@ public partial class MainWindow : Window
     private bool _networkChangeSubscribed;
     private readonly PeerStatusTracker _statusTracker = new();
 
-    public MainWindow()
+    public MainWindow() : this(new SettingsService(), new PeerHistoryArchive()) { }
+
+    public MainWindow(SettingsService settingsService, PeerHistoryArchive historyArchive)
     {
+        _settingsService = settingsService;
+        _historyArchive = historyArchive;
         InitializeComponent();
 
         _settings = _settingsService.Load();
         ThemeService.Apply(_settings.Theme);
         DataContext = _viewModel;
-
-        try
-        {
-            // Если приложение переместили после включения автозапуска,
-            // обновляем путь в HKCU\...\Run на текущий exe.
-            _autostartService.SetEnabled(_settings.StartWithWindows);
-        }
-        catch (Exception ex)
-        {
-            App.Log("Failed to synchronize Windows autostart setting.", ex);
-        }
 
         _tunnelHealthTimer.Tick += async (_, _) => await RefreshTunnelHealthAsync();
         _timer.Tick += async (_, _) => await RefreshDataAsync();
@@ -95,6 +90,9 @@ public partial class MainWindow : Window
     private async void Window_Loaded(object sender, RoutedEventArgs e)
     {
         App.Log("MainWindow Loaded event started.");
+
+        try { _autostartService.SetEnabled(_settings.StartWithWindows); }
+        catch (Exception ex) { App.Log("Failed to synchronize Windows autostart setting.", ex); }
 
         InitializeTray();
         _tunnelHealthTimer.Start();
@@ -344,6 +342,7 @@ public partial class MainWindow : Window
         }
 
         ConfigureHistory();
+        _connectionRevision++;
         _viewModel.Configure(_settings.ServerUrl, _settings.Username, password);
         _reachabilityCancellation.Cancel();
         _reachabilityCancellation.Dispose();
@@ -438,12 +437,16 @@ public partial class MainWindow : Window
 
     private async Task RefreshDataAsync()
     {
+        if (_dataRefreshRunning || _allowExit) return;
+        _dataRefreshRunning = true;
+        var connectionRevision = _connectionRevision;
         var selectedPeerId = (PeersGrid.SelectedItem as Peer)?.Id;
 
         RefreshButton.IsEnabled = false;
         try
         {
             await _viewModel.RefreshAsync();
+            if (connectionRevision != _connectionRevision || _allowExit) return;
             RefreshTrayNetworkUi();
             UpdateAccessVisuals();
             RestoreGroupSelection();
@@ -462,12 +465,12 @@ public partial class MainWindow : Window
                     {
                         var saved = persistence && scope is not null
                             ? await Task.Run(() => _historyArchive.Load(scope)) : [];
-                        if (scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
+                        if (connectionRevision != _connectionRevision || scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
                         _peerHistory.RestoreAuthorized(saved, _viewModel.Peers.Select(p => p.Id));
                     }
                     catch (Exception ex) { App.Log("Peer history archive unavailable; starting a fresh history.", ex); }
                     finally { _historyLoading = false; }
-                    if (scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
+                    if (connectionRevision != _connectionRevision || scope != _historyScope || persistence != _historyPersistence || _allowExit) return;
                     _historyLoaded = true;
                 }
                 _peerHistory.RetainPeers(_viewModel.Peers.Select(p => p.Id));
@@ -493,6 +496,7 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _dataRefreshRunning = false;
             RefreshButton.IsEnabled = true;
         }
     }

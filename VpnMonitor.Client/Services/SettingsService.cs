@@ -47,9 +47,10 @@ public sealed class SettingsService
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr LocalFree(IntPtr hMem);
 
-    public string SettingsDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "VpnMonitorClient");
+    public string SettingsDirectory { get; }
+
+    public SettingsService(string? directory = null) => SettingsDirectory = directory ?? Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "VpnMonitorClient");
 
     public string SettingsPath => Path.Combine(SettingsDirectory, "settings.json");
 
