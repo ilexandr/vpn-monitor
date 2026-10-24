@@ -16,7 +16,7 @@ public static class PeerCsvExport
                 peer.GroupsText, peer.IsFavorite ? "Да" : "Нет", peer.Notes]);
         return output.ToString();
     }
-    private static void Add(StringBuilder output, IEnumerable<string?> values) =>
+    internal static void Add(StringBuilder output, IEnumerable<string?> values) =>
         output.AppendJoin(';', values.Select(Cell)).Append("\r\n");
 
     private static string Cell(string? value)

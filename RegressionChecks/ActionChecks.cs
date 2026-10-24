@@ -86,6 +86,16 @@ internal static class ActionChecks
         history.Observe("b", "AWG", "Offline");
         Require(history.Entries.Count == 1 && history.Entries[0].Previous == "—", "Changing account must reset history baselines.");
         var historyWindow = new PeerHistoryWindow("Example", history, "b");
+        var historySearch = (TextBox)historyWindow.FindName("SearchBox");
+        var filteredHistory = (DataGrid)historyWindow.FindName("HistoryGrid");
+        historySearch.Text = "AWG online";
+        Require(filteredHistory.Items.Count == 0, "History search must apply AND matching in the actual window.");
+        history.Observe("b", "AWG", "Online");
+        Require(filteredHistory.Items.Count == 1, "Matching events must appear live while history search is active.");
+        history.Observe("other", "AWG", "Online");
+        Require(filteredHistory.Items.Count == 1, "Another peer must stay hidden in the actual history window.");
+        historySearch.Text = "";
+        Require(filteredHistory.Items.Count == 2, "Clearing history search must restore only this peer's events.");
         historyWindow.Close();
         Console.WriteLine("PASS: action groups, nested popups, callbacks, settings compatibility, isolated editing; bounded history, deduplication, unknown states, endpoint changes and scope reset.");
         var entryEditor = new CustomActionsWindow([

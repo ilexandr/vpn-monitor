@@ -354,7 +354,7 @@ public partial class MainWindow : Window
         try
         {
             var target = _settings.ServerUrl;
-            if (_tunnelHealthTarget != target) { _tunnelHealth.Observe(false, null); _tunnelHealthTarget = target; }
+            if (_tunnelHealthTarget != target) { _tunnelHealth.Reset(); _tunnelHealthTarget = target; }
             var running = AwgServiceStatus.Read().State == 4;
             bool? reachable = null;
             if (running && Uri.TryCreate(target, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
@@ -520,7 +520,7 @@ public partial class MainWindow : Window
     private void AwgStatus_Click(object sender, RoutedEventArgs e)
     {
         if (_awgStatusWindow is not null) { _awgStatusWindow.Activate(); return; }
-        _awgStatusWindow = new AwgStatusWindow(() => _tunnelHealth.Text) { Owner = this };
+        _awgStatusWindow = new AwgStatusWindow(() => _tunnelHealth.Details) { Owner = this };
         _awgStatusWindow.Closed += (_, _) => _awgStatusWindow = null;
         _awgStatusWindow.Show();
     }

@@ -5,10 +5,23 @@ public sealed class TunnelHealthMonitor
 {
     private int _failures;
     public bool IsDegraded { get; private set; }
+    public DateTimeOffset? CheckedAt { get; private set; }
+    public DateTimeOffset? LastReachableAt { get; private set; }
+    public string Details => $"{Text}\nПоследняя проверка: {Format(CheckedAt)}\nПоследняя успешная связь: {Format(LastReachableAt)}";
+    private static string Format(DateTimeOffset? time) => time?.LocalDateTime.ToString("dd.MM.yyyy HH:mm:ss") ?? "ещё не было";
+    public void Reset()
+    {
+        _failures = 0;
+        IsDegraded = false;
+        CheckedAt = LastReachableAt = null;
+        Text = "Доступность VPN ещё не проверена";
+    }
     public string Text { get; private set; } = "Доступность VPN ещё не проверена";
     public bool Observe(bool running, bool? reachable)
     {
         var wasDegraded = IsDegraded;
+        CheckedAt = DateTimeOffset.Now;
+        if (running && reachable == true) LastReachableAt = CheckedAt;
         if (!running) { _failures = 0; IsDegraded = false; Text = "Туннель отключён"; }
         else if (reachable is null) { _failures = 0; IsDegraded = false; Text = "Доступность VPN неизвестна"; }
         else if (reachable == true) { _failures = 0; IsDegraded = false; Text = "VPN-сервер доступен"; }

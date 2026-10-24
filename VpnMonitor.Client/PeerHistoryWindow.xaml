@@ -6,7 +6,14 @@
  <DockPanel Margin="16">
   <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,12"
     Text="История текущего сеанса: статус AWG, активная доступность и endpoint. Хранится до 2000 событий на всех клиентов. Первое наблюдение задаёт исходное состояние. При потере связи статус неизвестен."/>
-  <Button DockPanel.Dock="Bottom" x:Name="CloseButton" Content="Закрыть" IsCancel="True" Click="Close_Click" HorizontalAlignment="Right" Padding="16,7" Margin="0,12,0,0"/>
+  <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+   <TextBlock Text="Поиск:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+   <TextBox x:Name="SearchBox" TextChanged="Search_Changed" Padding="7,5" ToolTip="Поиск по всем словам: время, источник, было и стало"/>
+  </DockPanel>
+  <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+   <Button x:Name="CloseButton" DockPanel.Dock="Right" Content="Закрыть" IsCancel="True" Click="Close_Click" Padding="16,7"/>
+   <Button x:Name="ExportButton" Content="Экспорт CSV..." Click="Export_Click" HorizontalAlignment="Left" Padding="16,7"/>
+  </DockPanel>
   <DataGrid x:Name="HistoryGrid" IsReadOnly="True" AutoGenerateColumns="False" CanUserAddRows="False"
     Background="{DynamicResource PanelBrush}" Foreground="{DynamicResource TextBrush}"
     BorderBrush="{DynamicResource BorderBrush}" HeadersVisibility="Column" ColumnHeaderHeight="34"

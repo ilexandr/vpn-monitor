@@ -24,6 +24,7 @@ internal static class Program
                 await UpdateChecks.RunAsync();
                 if (args.Contains("--updates-only")) { exitCode = 0; return; }
                 CheckTunnelHealth();
+                HistoryChecks.Run();
                 await CheckTunnelProbeAsync();
                 if (args.Contains("--health-only")) { exitCode = 0; return; }
                 if (args.Contains("--access-only"))
@@ -89,14 +90,20 @@ internal static class Program
     {
         var monitor = new TunnelHealthMonitor();
         void Check(bool condition) { if (!condition) throw new Exception("Tunnel health regression"); }
+        Check(monitor.CheckedAt is null && monitor.LastReachableAt is null);
         Check(!monitor.Observe(false, false) && !monitor.IsDegraded);
         Check(!monitor.Observe(true, false));
         Check(!monitor.Observe(true, false));
         Check(monitor.Observe(true, false) && monitor.IsDegraded);
         Check(!monitor.Observe(true, false));
         Check(monitor.Observe(true, true) && !monitor.IsDegraded);
+        var success = monitor.LastReachableAt;
+        Check(success is not null && success == monitor.CheckedAt);
         monitor.Observe(true, false); monitor.Observe(false, null);
+        Check(monitor.LastReachableAt == success);
         Check(!monitor.Observe(true, false) && !monitor.IsDegraded);
+        monitor.Reset();
+        Check(monitor.CheckedAt is null && monitor.LastReachableAt is null && !monitor.IsDegraded);
         monitor.Observe(true, null);
         Check(!monitor.Observe(true, false) && !monitor.IsDegraded);
         Console.WriteLine("PASS: tunnel health confirmation, notification deduplication, recovery, stop and unknown reset.");
