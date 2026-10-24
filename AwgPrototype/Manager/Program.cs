@@ -11,7 +11,7 @@ internal static class Program
 {
     private static readonly string Data = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "VpnMonitor", "AwgPrototype");
     private static readonly string CatalogFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "VpnMonitor", "AwgStatus", "profiles.json");
-    private static readonly string Engine = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "VpnMonitor", "AwgPrototype", "tunnel.dll");
+    private static readonly string Engine = Path.Combine(AppContext.BaseDirectory, "tunnel.dll");
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte Validate(IntPtr text, IntPtr name);
     [DllImport("kernel32.dll", SetLastError=true)] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetDefaultDllDirectories(uint flags);
     [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] private static extern IntPtr AddDllDirectory(string path);
@@ -28,7 +28,9 @@ internal static class Program
                 return 10;
             }
             System.Windows.Forms.Application.EnableVisualStyles();
-            System.Windows.Forms.Application.Run(new ManagerForm());
+            using var form = new ManagerForm();
+            using var updater = new UpdateParticipant("Manager", () => form.BeginInvoke(new Action(() => form.Close())));
+            System.Windows.Forms.Application.Run(form);
             return 0;
         }
         if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt")) return 2;

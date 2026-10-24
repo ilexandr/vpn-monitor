@@ -42,3 +42,6 @@ AwgPrototype/*.ps1
 !AwgPrototype/Install-Prototype.ps1
 !AwgPrototype/Install-Manager.ps1
 !AwgPrototype/Prepare-Engine.ps1
+tools/
+
+!AwgPrototype/Prepare-Toolchain.ps1

@@ -18,6 +18,12 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--update-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(); exitCode = 0; return; }
+                await UpdateChecks.RunAsync();
+                if (args.Contains("--updates-only")) { exitCode = 0; return; }
+                CheckTunnelHealth();
+                await CheckTunnelProbeAsync();
+                if (args.Contains("--health-only")) { exitCode = 0; return; }
                 if (args.Contains("--access-only"))
                 {
                     await AccessChecks.RunAsync();
@@ -57,6 +63,41 @@ internal static class Program
         }));
         Dispatcher.Run();
         return exitCode;
+    }
+
+    private static async Task CheckTunnelProbeAsync()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var uri = new Uri($"http://127.0.0.1:{((IPEndPoint)listener.LocalEndpoint).Port}");
+        try
+        {
+            if (!await TunnelHealthMonitor.ProbeAsync(uri, CancellationToken.None)) throw new Exception("Healthy probe failed");
+            using var accepted = await listener.AcceptTcpClientAsync();
+        }
+        finally { listener.Stop(); }
+        if (await TunnelHealthMonitor.ProbeAsync(uri, CancellationToken.None)) throw new Exception("Refused probe passed");
+        using var cancelled = new CancellationTokenSource(); cancelled.Cancel();
+        try { await TunnelHealthMonitor.ProbeAsync(uri, cancelled.Token); throw new Exception("Cancellation was swallowed"); }
+        catch (OperationCanceledException) { }
+        Console.WriteLine("PASS: tunnel TCP probe success, refusal and cancellation.");
+    }
+
+    private static void CheckTunnelHealth()
+    {
+        var monitor = new TunnelHealthMonitor();
+        void Check(bool condition) { if (!condition) throw new Exception("Tunnel health regression"); }
+        Check(!monitor.Observe(false, false) && !monitor.IsDegraded);
+        Check(!monitor.Observe(true, false));
+        Check(!monitor.Observe(true, false));
+        Check(monitor.Observe(true, false) && monitor.IsDegraded);
+        Check(!monitor.Observe(true, false));
+        Check(monitor.Observe(true, true) && !monitor.IsDegraded);
+        monitor.Observe(true, false); monitor.Observe(false, null);
+        Check(!monitor.Observe(true, false) && !monitor.IsDegraded);
+        monitor.Observe(true, null);
+        Check(!monitor.Observe(true, false) && !monitor.IsDegraded);
+        Console.WriteLine("PASS: tunnel health confirmation, notification deduplication, recovery, stop and unknown reset.");
     }
 
     private static void CheckNotifications()

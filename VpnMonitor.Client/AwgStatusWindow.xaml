@@ -8,6 +8,7 @@
           <StackPanel>
             <TextBlock x:Name="ServiceStatus" Text="Проверка..." FontSize="18" FontWeight="SemiBold" />
             <TextBlock x:Name="SelectedProfileText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,8,0,0" />
+            <TextBlock x:Name="HealthText" TextWrapping="Wrap" Margin="0,8,0,0" />
             <TextBlock x:Name="DetailsText" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
           </StackPanel>
         </Border>

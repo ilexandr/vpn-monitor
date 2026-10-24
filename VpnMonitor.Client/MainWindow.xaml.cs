@@ -25,6 +25,11 @@ public partial class MainWindow : Window
     private ClientSettings _settings;
     private readonly MainViewModel _viewModel = new();
     private readonly PeerHistory _peerHistory = new();
+    private readonly TunnelHealthMonitor _tunnelHealth = new();
+    private readonly DispatcherTimer _tunnelHealthTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly CancellationTokenSource _tunnelHealthCancellation = new();
+    private bool _tunnelHealthRunning;
+    private string? _tunnelHealthTarget;
     private readonly DispatcherTimer _timer = new();
     private readonly DispatcherTimer _reachabilityTimer = new();
     private ReachabilityMonitor _reachabilityMonitor = new();
@@ -68,6 +73,7 @@ public partial class MainWindow : Window
             App.Log("Failed to synchronize Windows autostart setting.", ex);
         }
 
+        _tunnelHealthTimer.Tick += async (_, _) => await RefreshTunnelHealthAsync();
         _timer.Tick += async (_, _) => await RefreshDataAsync();
         _reachabilityTimer.Tick += async (_, _) => await RefreshReachabilityAsync();
 
@@ -83,6 +89,8 @@ public partial class MainWindow : Window
         App.Log("MainWindow Loaded event started.");
 
         InitializeTray();
+        _tunnelHealthTimer.Start();
+        _ = RefreshTunnelHealthAsync();
         RestoreWindowState();
 
         if (!_settings.StartMinimized)
@@ -339,6 +347,33 @@ public partial class MainWindow : Window
         return true;
     }
 
+    private async Task RefreshTunnelHealthAsync()
+    {
+        if (_tunnelHealthRunning || _tunnelHealthCancellation.IsCancellationRequested) return;
+        _tunnelHealthRunning = true;
+        try
+        {
+            var target = _settings.ServerUrl;
+            if (_tunnelHealthTarget != target) { _tunnelHealth.Observe(false, null); _tunnelHealthTarget = target; }
+            var running = AwgServiceStatus.Read().State == 4;
+            bool? reachable = null;
+            if (running && Uri.TryCreate(target, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
+                reachable = await TunnelHealthMonitor.ProbeAsync(uri, _tunnelHealthCancellation.Token);
+            if (_tunnelHealthCancellation.IsCancellationRequested || target != _settings.ServerUrl) return;
+            // Ignore results from a connection that was stopped while the probe was in flight.
+            running = running && AwgServiceStatus.Read().State == 4;
+            if (_tunnelHealth.Observe(running, reachable))
+            {
+                App.Log(_tunnelHealth.Text);
+                _trayIcon?.ShowBalloonTip(7000, "Общий туннель AWG", _tunnelHealth.Text,
+                    _tunnelHealth.IsDegraded ? System.Windows.Forms.ToolTipIcon.Warning : System.Windows.Forms.ToolTipIcon.Info);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { _tunnelHealth.Observe(true, null); App.Log("Tunnel health check unavailable.", ex); }
+        finally { _tunnelHealthRunning = false; }
+    }
+
     private void ConfigureTimer()
     {
         _timer.Stop();
@@ -465,11 +500,26 @@ public partial class MainWindow : Window
         finally { _reachabilityRunning = false; }
     }
 
+    internal void ShutdownForUpdate()
+    {
+        _allowExit = true;
+        System.Windows.Application.Current.Shutdown();
+    }
+
+    private AboutWindow? _aboutWindow;
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        if (_aboutWindow is not null) { _aboutWindow.Activate(); return; }
+        _aboutWindow = new AboutWindow { Owner = this };
+        _aboutWindow.Closed += (_,_) => _aboutWindow = null;
+        _aboutWindow.Show();
+    }
+
     private AwgStatusWindow? _awgStatusWindow;
     private void AwgStatus_Click(object sender, RoutedEventArgs e)
     {
         if (_awgStatusWindow is not null) { _awgStatusWindow.Activate(); return; }
-        _awgStatusWindow = new AwgStatusWindow { Owner = this };
+        _awgStatusWindow = new AwgStatusWindow(() => _tunnelHealth.Text) { Owner = this };
         _awgStatusWindow.Closed += (_, _) => _awgStatusWindow = null;
         _awgStatusWindow.Show();
     }
@@ -1469,6 +1519,8 @@ public partial class MainWindow : Window
         _reachabilityTimer.Stop();
         _reachabilityCancellation.Cancel();
         _reachabilityCancellation.Dispose();
+        _tunnelHealthTimer.Stop();
+        _tunnelHealthCancellation.Cancel();
         _shareLifetimeCancellation.Cancel();
         _shareLifetimeCancellation.Dispose();
         _trayNetworkPopup?.Close();
