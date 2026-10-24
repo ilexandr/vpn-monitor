@@ -38,8 +38,10 @@ public sealed class UpdateParticipant : IDisposable
                     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
                     timeout.CancelAfter(TimeSpan.FromSeconds(5));
                     var line = await reader.ReadLineAsync(timeout.Token);
-                    if (!Guid.TryParseExact(line,"N",out var id)) continue;
-                    if (prepareResume is not null) prepareResume(id);
+                    var removing = line?.StartsWith("remove|",StringComparison.Ordinal) == true;
+                    if (!Guid.TryParseExact(removing ? line![7..] : line,"N",out var id)) continue;
+                    if (removing) { /* Uninstall closes participants without restarting them. */ }
+                    else if (prepareResume is not null) prepareResume(id);
                     else
                     {
                     var script = Path.Combine(InstallRoot,"Setup","Resume-AfterUpdate.ps1");

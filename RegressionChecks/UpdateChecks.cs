@@ -6,7 +6,7 @@ using System.Text.Json;
 using VpnMonitor.Client.Services;
 internal static class UpdateChecks
 {
-    public static async Task RunAdminIpcAsync()
+    public static async Task RunAdminIpcAsync(bool removing = false)
     {
         var prepared=false;
         var received=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -14,26 +14,26 @@ internal static class UpdateChecks
         var script=Path.Combine(Environment.CurrentDirectory,"artifacts","installer","update-ipc-admin.ps1");
         Directory.CreateDirectory(Path.GetDirectoryName(script)!);
         File.WriteAllText(script,"""
-param([int]$TargetPid)
+param([int]$TargetPid,[switch]$Removing)
 $ErrorActionPreference='Stop'
 $pipe=[IO.Pipes.NamedPipeClientStream]::new('.','VpnMonitor.Update.'+$TargetPid,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous,[Security.Principal.TokenImpersonationLevel]::Impersonation)
 try{
  $pipe.Connect(10000)
  $writer=[IO.StreamWriter]::new($pipe);$writer.AutoFlush=$true
  $reader=[IO.StreamReader]::new($pipe)
- $writer.WriteLine([Guid]::NewGuid().ToString('N'))
+ $request=[Guid]::NewGuid().ToString('N'); if($Removing){$request='remove|'+$request}; $writer.WriteLine($request)
  if($reader.ReadLine() -ne 'ready'){exit 2}
 }finally{$pipe.Dispose()}
 exit 0
 """);
         var info=new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"WindowsPowerShell","v1.0","powershell.exe")) {
             UseShellExecute=true,Verb="runas",WindowStyle=ProcessWindowStyle.Hidden,
-            Arguments=$"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{script}\" -TargetPid {Environment.ProcessId}"
+            Arguments=$"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{script}\" -TargetPid {Environment.ProcessId} {(removing ? "-Removing" : "")}"
         };
         using var child=Process.Start(info) ?? throw new Exception("IPC test could not start");
         await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(60));
         await received.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        if(child.ExitCode!=0 || !prepared) throw new Exception("Elevated IPC failed");
+        if(child.ExitCode!=0 || prepared == removing) throw new Exception("Elevated IPC failed");
         Console.WriteLine("PASS: elevated cross-token pipe authentication, resume preparation and shutdown acknowledgement (no application or tunnel stopped).");
     }
     public static async Task RunAsync()

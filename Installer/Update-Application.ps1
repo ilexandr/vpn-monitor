@@ -133,10 +133,8 @@ try{
  if($state){
   try{
    Write-State 'Restoring' 'Восстановление работы туннеля и приложений…'
-   if($serviceWasRunning -and (Get-Service $serviceName).Status -ne 'Running'){
-    Start-Service -Name $serviceName
-    (Get-Service $serviceName).WaitForStatus('Running',[TimeSpan]::FromSeconds(40))
-   }
+   . (Join-Path $PSScriptRoot 'Service-Recovery.ps1')
+   Restore-MonitorTunnel $serviceWasRunning $expected (Join-Path $stage 'service-recovery.jsonl')
   }catch{$failure+='; tunnel restoration: '+$_.Exception.Message}
   try{if($failure){Write-State 'Failed' $failure}else{Write-State 'Completed' 'Обновление установлено. Работа приложений восстанавливается.'}}catch{$failure+='; state: '+$_.Exception.Message}
  }

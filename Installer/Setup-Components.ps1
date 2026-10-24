@@ -1,5 +1,5 @@
 param(
- [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','Remove')][string]$Phase,
+ [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','PrepareRemove','Remove')][string]$Phase,
  [Parameter(Mandatory=$true)][string]$Root,
  [string]$DiagnosticPath
 )
@@ -64,6 +64,37 @@ try{
   if($existing.StartName -ne 'LocalSystem' -or $existing.PathName -notin $accepted){throw 'Existing service configuration differs; refusing replacement'}
  }
  Assert-NoReparse $expected;Assert-NoReparse $dataRoot;Assert-NoReparse $publicRoot
+ if($Phase -eq 'PrepareRemove'){
+  $processes=@(Get-CimInstance Win32_Process | Where-Object {
+   $_.ExecutablePath -and $_.ExecutablePath.StartsWith($expected+'\',[StringComparison]::OrdinalIgnoreCase) -and
+   $_.Name -in @('VpnMonitor.Client.exe','AwgPrototype.Manager.exe')
+  })
+  foreach($process in $processes){
+   if(!(Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue)){continue}
+   $pipe=[IO.Pipes.NamedPipeClientStream]::new('.','VpnMonitor.Update.'+$process.ProcessId,[IO.Pipes.PipeDirection]::InOut,[IO.Pipes.PipeOptions]::Asynchronous,[Security.Principal.TokenImpersonationLevel]::Impersonation)
+   try{
+    $pipe.Connect(10000)
+    $writer=[IO.StreamWriter]::new($pipe);$writer.AutoFlush=$true
+    $reader=[IO.StreamReader]::new($pipe)
+    $writer.WriteLine('remove|'+[Guid]::NewGuid().ToString('N'))
+    $ack=$reader.ReadLineAsync()
+    if(!$ack.Wait(15000) -or $ack.Result -ne 'ready'){throw 'Cannot prepare application for uninstall'}
+   }finally{$pipe.Dispose()}
+   $old=Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
+   if($old -and !$old.WaitForExit(20000)){throw 'Application is busy; uninstall cancelled'}
+  }
+  $service=Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+  if($service -and $service.Status -ne 'Stopped'){
+   Stop-Service -Name $serviceName
+   (Get-Service $serviceName).WaitForStatus('Stopped',[TimeSpan]::FromSeconds(40))
+  }
+  if($existing -and $existing.ProcessId){
+   $hostProcess=Get-Process -Id $existing.ProcessId -ErrorAction SilentlyContinue
+   if($hostProcess -and !$hostProcess.WaitForExit(10000)){throw 'Tunnel host has not exited'}
+  }
+  Assert-Idle
+  exit 0
+ }
  Assert-Idle
  if($Phase -eq 'Preflight'){Write-Output 'Preflight passed';exit 0}
  if($Phase -eq 'Remove'){
@@ -98,7 +129,26 @@ try{
  if($LASTEXITCODE -ne 0){throw 'Cannot configure service permissions'}
  New-Item -Path 'HKLM:\Software\VpnMonitor' -Force | Out-Null
  Set-ItemProperty -Path 'HKLM:\Software\VpnMonitor' -Name InstallRoot -Value $expected
- Write-Output 'Installed. Shared tunnel remains stopped.'
+ # A fresh elevated setup process can restore a tunnel for older coordinators too.
+ # Only honor the journal belonging to this installer's own process ancestry.
+ $ancestors=@();$ancestor=$PID
+ for($depth=0;$depth -lt 6 -and $ancestor;$depth++){
+  $ancestors+=$ancestor
+  $parent=Get-CimInstance Win32_Process -Filter ("ProcessId="+$ancestor) -ErrorAction SilentlyContinue
+  if(!$parent -or $parent.ParentProcessId -eq $ancestor){break};$ancestor=$parent.ParentProcessId
+ }
+ foreach($journal in Get-ChildItem -LiteralPath $publicRoot -Filter 'update-*.json' -ErrorAction SilentlyContinue){
+  try{
+   $update=Get-Content -LiteralPath $journal.FullName -Raw | ConvertFrom-Json
+   $id=[Guid]::Empty
+   if($update.Phase -ne 'Installing' -or !$update.ServiceWasRunning -or !$update.InstallerPid -or $update.InstallerPid -notin $ancestors -or ![Guid]::TryParseExact($update.Id,'N',[ref]$id)){continue}
+   $updateStage=Join-Path $env:ProgramData ('VpnMonitor\Updates\'+$id.ToString('N'))
+   if(!(Test-Path -LiteralPath $updateStage)){continue}
+   . (Join-Path $PSScriptRoot 'Service-Recovery.ps1')
+   Restore-MonitorTunnel $true $binary (Join-Path $updateStage 'installer-service-recovery.jsonl')
+  }catch{Write-Warning ('Tunnel recovery diagnostics: '+$_.Exception.Message)}
+ }
+ Write-Output 'Installed. User profiles retained.'
  exit 0
 }catch{
  if($DiagnosticPath){[IO.File]::WriteAllText($DiagnosticPath, $_.Exception.Message, [Text.Encoding]::UTF8)}

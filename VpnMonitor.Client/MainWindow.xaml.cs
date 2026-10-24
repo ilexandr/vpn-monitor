@@ -362,6 +362,7 @@ public partial class MainWindow : Window
             if (_tunnelHealthCancellation.IsCancellationRequested || target != _settings.ServerUrl) return;
             // Ignore results from a connection that was stopped while the probe was in flight.
             running = running && AwgServiceStatus.Read().State == 4;
+            if (reachable == false) _viewModel.MarkAwgDataStale();
             if (_tunnelHealth.Observe(running, reachable))
             {
                 App.Log(_tunnelHealth.Text);

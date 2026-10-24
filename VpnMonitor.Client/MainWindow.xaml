@@ -245,8 +245,9 @@
                                    FontSize="11"
                                    FontWeight="SemiBold"/>
                     </Border>
-                    <TextBlock Foreground="{DynamicResource OnlineBrush}" VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Online / всего">
-                        <Run Text="● "/><Run Text="{Binding OnlineCount, Mode=OneWay}" FontWeight="Bold"/><Run Text="/"/><Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="Bold"/>
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,12,0" ToolTip="Online / всего. При потере связи статус неизвестен.">
+                        <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource OnlineBrush}"/><Style.Triggers><DataTrigger Binding="{Binding AwgState.IsCurrent}" Value="False"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                        <Run Text="● "/><Run Text="{Binding OnlineCountText, Mode=OneWay}" FontWeight="Bold"/><Run Text="/"/><Run Text="{Binding TotalCount, Mode=OneWay}" FontWeight="Bold"/>
                     </TextBlock>
                     <Button x:Name="RefreshButton" Content="↻" Width="32" Height="30" Margin="0,0,6,0"
                             ToolTip="Обновить сейчас" Click="Refresh_Click"/>

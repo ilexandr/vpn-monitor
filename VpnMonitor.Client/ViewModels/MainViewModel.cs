@@ -34,7 +34,15 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
     public ObservableCollection<Peer> Peers { get; } = [];
     public AwgDataState AwgState { get; } = new();
-    public void MarkAwgDataStale() => AwgState.IsCurrent = false;
+    public void MarkAwgDataStale()
+    {
+        AwgState.IsCurrent = false;
+        OnlineCount = 0;
+        OfflineCount = 0;
+        foreach (var group in Groups) group.IsCurrent = false;
+        OnPropertyChanged(nameof(OnlineCountText));
+    }
+    public string OnlineCountText => AwgState.IsCurrent ? OnlineCount.ToString() : "—";
     public ObservableCollection<GroupListItem> Groups { get; } = [];
     public ICollectionView PeersView { get; }
 
@@ -315,6 +323,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             LastUpdated = FormatUpdated(peerResponse.Updated ?? groupResponse.Updated);
             ErrorMessage = null;
             AwgState.IsCurrent = true;
+            OnPropertyChanged(nameof(OnlineCountText));
 
             PeersView.Refresh();
         }

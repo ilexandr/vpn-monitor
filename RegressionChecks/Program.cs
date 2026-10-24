@@ -18,7 +18,9 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--uninstall-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(true); exitCode = 0; return; }
                 if (args.Contains("--update-admin-ipc")) { await UpdateChecks.RunAdminIpcAsync(); exitCode = 0; return; }
+                await CountChecks.RunAsync();
                 await UpdateChecks.RunAsync();
                 if (args.Contains("--updates-only")) { exitCode = 0; return; }
                 CheckTunnelHealth();

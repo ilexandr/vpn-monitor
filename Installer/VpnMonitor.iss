@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.63"
+ #define AppVersion "0.1.64"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -47,6 +47,7 @@ Source: "Setup-Components.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Setup-Components.ps1"; Flags: dontcopy
 Source: "Update-Application.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Resume-AfterUpdate.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
+Source: "Service-Recovery.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 
 [InstallDelete]
 #include LegacyCleanup
@@ -101,14 +102,17 @@ end;
 
 function InitializeUninstall: Boolean;
 begin
-  Result := RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'Preflight');
-  if not Result then
-    MsgBox('Перед удалением отключите общий AWG и закройте приложение во всех сеансах. Настройки и профили сохраняются.', mbError, MB_OK);
+  Result := True;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
+  begin
+    UninstallProgressForm.StatusLabel.Caption := 'Закрытие VPN Monitor и менеджера во всех сеансах, остановка общего туннеля…';
+    if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'PrepareRemove') then
+      RaiseException('Не удалось подготовить удаление: ' + ComponentError);
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'Remove') then
       RaiseException('Не удалось удалить регистрацию службы. Файлы профилей сохраняются.');
+  end;
 end;
