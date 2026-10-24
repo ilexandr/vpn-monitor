@@ -18,8 +18,13 @@ public static class AwgProfileCatalogReader
     }
     public static AwgProfileCatalog Read()
     {
-        if(!File.Exists(CatalogPath))return new();
-        if(new FileInfo(CatalogPath).Length>256*1024)throw new InvalidDataException("Некорректный список профилей.");
-        return JsonSerializer.Deserialize<AwgProfileCatalog>(File.ReadAllText(CatalogPath))??new();
+        try
+        {
+            using var input = new FileStream(CatalogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if(input.Length>256*1024)throw new InvalidDataException("Некорректный список профилей.");
+            return JsonSerializer.Deserialize<AwgProfileCatalog>(input)??new();
+        }
+        catch(FileNotFoundException){return new();}
+        catch(DirectoryNotFoundException){return new();}
     }
 }

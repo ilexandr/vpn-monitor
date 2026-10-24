@@ -91,7 +91,7 @@ public partial class App : System.Windows.Application
             if (exception is not null)
                 text.AppendLine(exception.ToString());
 
-            File.AppendAllText(LogPath, text.ToString(), new UTF8Encoding(false));
+            RollingLog.Append(LogPath, text.ToString());
         }
         catch
         {

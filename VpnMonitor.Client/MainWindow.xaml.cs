@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private long _historyRevision;
     private long _connectionRevision;
     private bool _dataRefreshRunning;
+    private DateTimeOffset? _lastApiAttempt, _lastApiSuccess;
     private readonly TunnelHealthMonitor _tunnelHealth = new();
     private readonly DispatcherTimer _tunnelHealthTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly CancellationTokenSource _tunnelHealthCancellation = new();
@@ -343,6 +344,7 @@ public partial class MainWindow : Window
 
         ConfigureHistory();
         _connectionRevision++;
+        _lastApiAttempt = _lastApiSuccess = null;
         _viewModel.Configure(_settings.ServerUrl, _settings.Username, password);
         _reachabilityCancellation.Cancel();
         _reachabilityCancellation.Dispose();
@@ -362,6 +364,7 @@ public partial class MainWindow : Window
         if (_historyScope != scope)
         {
             SaveHistoryOnExit();
+            _diagnosticsWindow?.Close();
             foreach (var window in OwnedWindows.OfType<PeerHistoryWindow>().ToArray()) window.Close();
             _peerHistory.Reset();
             _historyScope = scope;
@@ -445,8 +448,10 @@ public partial class MainWindow : Window
         RefreshButton.IsEnabled = false;
         try
         {
+            _lastApiAttempt = DateTimeOffset.Now;
             await _viewModel.RefreshAsync();
             if (connectionRevision != _connectionRevision || _allowExit) return;
+            if (!_viewModel.HasError) _lastApiSuccess = DateTimeOffset.Now;
             RefreshTrayNetworkUi();
             UpdateAccessVisuals();
             RestoreGroupSelection();
@@ -583,12 +588,30 @@ public partial class MainWindow : Window
     private void About_Click(object sender, RoutedEventArgs e)
     {
         if (_aboutWindow is not null) { _aboutWindow.Activate(); return; }
-        _aboutWindow = new AboutWindow { Owner = this };
+        _aboutWindow = new AboutWindow(ShowDiagnostics) { Owner = this };
         _aboutWindow.Closed += (_,_) => _aboutWindow = null;
         _aboutWindow.Show();
     }
 
     private AwgStatusWindow? _awgStatusWindow;
+    private DiagnosticsWindow? _diagnosticsWindow;
+    private void ShowDiagnostics()
+    {
+        if (_diagnosticsWindow is not null) { _diagnosticsWindow.Activate(); return; }
+        _diagnosticsWindow = new DiagnosticsWindow(CaptureDiagnosticsAsync, () => Log_Click(this, new RoutedEventArgs())) { Owner = this };
+        _diagnosticsWindow.Closed += (_, _) => _diagnosticsWindow = null;
+        _diagnosticsWindow.Show();
+    }
+
+    private Task<DiagnosticCapture> CaptureDiagnosticsAsync()
+    {
+        var state = new DiagnosticState(_settings.ServerUrl, _viewModel.AwgState.IsCurrent, _dataRefreshRunning, _viewModel.ErrorMessage,
+            _lastApiAttempt, _lastApiSuccess,
+            _lastApiSuccess is null || _viewModel.HasError ? "Не подтверждён" : _viewModel.IsAdmin ? "Администратор API" : "Ограниченный пользователь API",
+            _viewModel.TotalCount, _settings.ActiveChecksEnabled, Math.Clamp(_settings.ActiveCheckSeconds, 2, 300), _settings.SavePeerHistory, _tunnelHealth.Details);
+        var redactor = new DiagnosticRedactor([_settingsService.UnprotectPassword(_settings.ProtectedPassword), _settings.ProtectedPassword]);
+        return Task.Run(() => new DiagnosticCapture(DiagnosticReport.Create(state), redactor));
+    }
     private void AwgStatus_Click(object sender, RoutedEventArgs e)
     {
         if (_awgStatusWindow is not null) { _awgStatusWindow.Activate(); return; }
@@ -606,7 +629,7 @@ public partial class MainWindow : Window
             _logWindow.Activate();
             return;
         }
-        _logWindow = new LogWindow { Owner = this };
+        _logWindow = new LogWindow(ShowDiagnostics) { Owner = this };
         _logWindow.Closed += (_, _) => _logWindow = null;
         _logWindow.Show();
     }

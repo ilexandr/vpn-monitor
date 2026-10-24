@@ -9,12 +9,16 @@
   <StackPanel Margin="0,0,0,14">
    <TextBlock Text="Журнал приложения" FontSize="22" FontWeight="SemiBold"/>
    <TextBlock x:Name="LogPathText" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
+   <TextBlock Text="Текущий журнал и три архива — до 2 МБ каждый. Просмотр показывает последние 512 КБ выбранного файла." Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,0"/>
   </StackPanel>
   <Grid Grid.Row="1" Margin="0,0,0,12">
-   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-   <TextBox x:Name="SearchBox" Height="34" Padding="8,5" TextChanged="Search_Changed" ToolTip="Поиск по записям; текст исключения показывается целиком"/>
-   <Button Grid.Column="1" Content="Обновить" Click="Refresh_Click" Padding="12,5" Margin="8,0"/>
-   <CheckBox Grid.Column="2" x:Name="AutoRefreshBox" Content="Автообновление" IsChecked="True" VerticalAlignment="Center"/>
+   <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <ComboBox x:Name="LogChoiceBox" Width="160" Margin="0,0,8,0" SelectionChanged="LogChoice_Changed" VerticalContentAlignment="Center">
+    <ComboBoxItem Content="Текущий журнал"/><ComboBoxItem Content="Предыдущий (.1)"/><ComboBoxItem Content="Архив (.2)"/><ComboBoxItem Content="Архив (.3)"/>
+   </ComboBox>
+   <TextBox Grid.Column="1" x:Name="SearchBox" Height="34" Padding="8,5" TextChanged="Search_Changed" ToolTip="Поиск по записям; текст исключения показывается целиком"/>
+   <Button Grid.Column="2" Content="Обновить" Click="Refresh_Click" Padding="12,5" Margin="8,0"/>
+   <CheckBox Grid.Column="3" x:Name="AutoRefreshBox" Content="Автообновление" IsChecked="True" VerticalAlignment="Center"/>
   </Grid>
   <TextBox Grid.Row="2" x:Name="LogText" IsReadOnly="True" AcceptsReturn="True" FontFamily="Consolas" FontSize="12"
     Padding="12" TextWrapping="NoWrap" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
@@ -23,6 +27,8 @@
    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
    <TextBlock x:Name="StatusText" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,12,0"/>
    <StackPanel Grid.Column="1" Orientation="Horizontal">
+    <Button x:Name="DiagnosticsButton" Content="Диагностика..." Click="Diagnostics_Click" Padding="12,7" Margin="0,0,8,0"/>
+    <Button Content="Папка" Click="Folder_Click" Padding="12,7" Margin="0,0,8,0"/>
     <Button Content="Копировать" Click="Copy_Click" Padding="12,7" Margin="0,0,8,0" ToolTip="Копировать выделение, а если его нет — весь показанный текст"/>
     <Button x:Name="CloseButton" Content="Закрыть" IsCancel="True" Click="Close_Click" Padding="12,7"/>
    </StackPanel>

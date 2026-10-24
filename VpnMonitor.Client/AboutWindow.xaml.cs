@@ -6,12 +6,17 @@ public partial class AboutWindow : Window
 {
     private readonly CancellationTokenSource _stop = new();
     private UpdateRelease? _release;
-    public AboutWindow()
+    private readonly Action? _diagnostics;
+    public AboutWindow() : this(null) { }
+    public AboutWindow(Action? diagnostics)
     {
+        _diagnostics = diagnostics;
         InitializeComponent();
+        DiagnosticsButton.IsEnabled = diagnostics is not null;
         VersionText.Text = $"Версия {UpdateService.CurrentVersion} • Windows x64";
         SourceInitialized += (_,_) => ThemeService.ApplyWindowChrome(this);
         Closed += (_,_) => _stop.Cancel();
+        PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) { e.Handled = true; Close(); } };
     }
     private async void Check_Click(object sender,RoutedEventArgs e)
     {
@@ -37,6 +42,11 @@ public partial class AboutWindow : Window
         catch(System.ComponentModel.Win32Exception ex) when(ex.NativeErrorCode==1223) { StatusText.Text="Запрос обновления отменён."; }
         catch(Exception ex) { StatusText.Text=$"Не удалось начать обновление: {ex.Message}"; }
     }
-    private void Repository_Click(object sender,RoutedEventArgs e) => Process.Start(new ProcessStartInfo(UpdateService.Repository) { UseShellExecute=true });
+    private void Repository_Click(object sender,RoutedEventArgs e)
+    {
+        try { Process.Start(new ProcessStartInfo(UpdateService.Repository) { UseShellExecute=true }); }
+        catch (Exception ex) { StatusText.Text = "Не удалось открыть GitHub: " + ex.Message; }
+    }
     private void Close_Click(object sender,RoutedEventArgs e) => Close();
+    private void Diagnostics_Click(object sender,RoutedEventArgs e) => _diagnostics?.Invoke();
 }

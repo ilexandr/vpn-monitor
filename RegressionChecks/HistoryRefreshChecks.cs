@@ -72,6 +72,9 @@ internal static class HistoryRefreshChecks
             Require(history.Entries.Count == 0, "Overlapping refresh must not load or discard history before authorization completes.");
             release.TrySetResult(); await first.WaitAsync(TimeSpan.FromSeconds(5));
             Require(history.Entries.Any(e => e.Previous == "ADMIN_ARCHIVE"), "First authorized refresh must restore the existing archive.");
+            var diagnostics = await Capture(window);
+            Require(diagnostics.Report.Contains("Администратор API") && !diagnostics.Report.Contains("Последний успешный ответ API: —"),
+                "Main-window diagnostics must report the last authenticated API success.");
 
             received = new(TaskCreationOptions.RunContinuationsAsynchronously);
             release = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -81,6 +84,9 @@ internal static class HistoryRefreshChecks
             Configure(window);
             await Refresh(window);
             Require(history.Entries.Count == 0, "Account switch must immediately hide prior history while an old request is pending.");
+            diagnostics = await Capture(window);
+            Require(diagnostics.Report.Contains("Режим доступа: Не подтверждён") && diagnostics.Report.Contains("Последний успешный ответ API: —"),
+                "Diagnostic account switch must clear prior role and successful API timestamps.");
             release.TrySetResult(); await oldRefresh.WaitAsync(TimeSpan.FromSeconds(5));
             Require(history.Entries.Count == 0, "Late completion of an old account must not authorize or erase the new account archive.");
             await Refresh(window).WaitAsync(TimeSpan.FromSeconds(5));
@@ -99,6 +105,7 @@ internal static class HistoryRefreshChecks
     }
     private static void Configure(MainWindow window) => typeof(MainWindow).GetMethod("EnsureConfigured", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [false]);
     private static Task Refresh(MainWindow window) => (Task)typeof(MainWindow).GetMethod("RefreshDataAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
+    private static Task<DiagnosticCapture> Capture(MainWindow window) => (Task<DiagnosticCapture>)typeof(MainWindow).GetMethod("CaptureDiagnosticsAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
     private static T Field<T>(MainWindow window, string name) => (T)typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }
 }

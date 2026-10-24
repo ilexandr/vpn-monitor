@@ -11,9 +11,15 @@ public partial class LogWindow : Window
     private string _text = "";
     private bool _reading;
     private bool _closed;
-    public LogWindow()
+    private readonly Action? _diagnostics;
+    private string SelectedLogPath => App.ClientLogPath + (LogChoiceBox.SelectedIndex > 0 ? "." + LogChoiceBox.SelectedIndex : "");
+    public LogWindow() : this(null) { }
+    public LogWindow(Action? diagnostics)
     {
+        _diagnostics = diagnostics;
         InitializeComponent();
+        DiagnosticsButton.IsEnabled = diagnostics is not null;
+        LogChoiceBox.SelectedIndex = 0;
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key != System.Windows.Input.Key.Escape) return;
@@ -30,10 +36,12 @@ public partial class LogWindow : Window
     {
         if (_reading || _closed) return;
         _reading = true;
+        var path = SelectedLogPath;
         try
         {
-            var snapshot = await LogReader.ReadAsync(App.ClientLogPath, _lifetime.Token);
-            if (_closed) return;
+            var snapshot = await LogReader.ReadAsync(path, _lifetime.Token);
+            if (_closed || path != SelectedLogPath) return;
+            LogPathText.Text = path;
             _text = snapshot.Text;
             ApplyFilter();
             StatusText.Text = !snapshot.Exists ? "Файл журнала ещё не создан."
@@ -44,7 +52,12 @@ public partial class LogWindow : Window
         {
             if (!_closed) StatusText.Text = $"Не удалось прочитать журнал: {ex.Message}";
         }
-        finally { _reading = false; if (_closed) _lifetime.Dispose(); }
+        finally
+        {
+            _reading = false;
+            if (_closed) _lifetime.Dispose();
+            else if (path != SelectedLogPath) _ = RefreshAsync();
+        }
     }
     private void ApplyFilter()
     {
@@ -68,4 +81,16 @@ public partial class LogWindow : Window
         catch (Exception ex) { StatusText.Text = $"Не удалось скопировать: {ex.Message}"; }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
+    private async void LogChoice_Changed(object sender, SelectionChangedEventArgs e) { if (IsLoaded) await RefreshAsync(); }
+    private void Diagnostics_Click(object sender, RoutedEventArgs e) => _diagnostics?.Invoke();
+    private void Folder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var directory = System.IO.Path.GetDirectoryName(App.ClientLogPath)!;
+            System.IO.Directory.CreateDirectory(directory);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(directory) { UseShellExecute = true });
+        }
+        catch (Exception ex) { StatusText.Text = "Не удалось открыть папку: " + ex.Message; }
+    }
 }

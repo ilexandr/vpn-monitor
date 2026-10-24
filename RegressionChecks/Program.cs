@@ -11,6 +11,11 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 3 && args[0] == "--rolling-log-child")
+        {
+            for (var i = 0; i < 10; i++) RollingLog.Append(args[1], args[2] + "-" + i + "\n");
+            return 0;
+        }
         var dispatcher = Dispatcher.CurrentDispatcher;
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
         var exitCode = 1;
@@ -27,6 +32,7 @@ internal static class Program
                 HistoryChecks.Run();
                 HistoryArchiveChecks.Run();
                 await HistoryRefreshChecks.RunAsync();
+                await DiagnosticChecks.RunAsync();
                 await CheckTunnelProbeAsync();
                 if (args.Contains("--health-only")) { exitCode = 0; return; }
                 if (args.Contains("--access-only"))
