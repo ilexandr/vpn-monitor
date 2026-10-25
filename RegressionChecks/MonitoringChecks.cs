@@ -217,6 +217,19 @@ internal static class MonitoringChecks
                 Render(content, "awg-manager-min-" + theme);
             }
             finally { manager.Close(); }
+            if (theme == ThemeService.Dark)
+            {
+                var pending = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var busyManager = new AwgManagementWindow((_, _) => pending.Task, () => (catalog, state, "Работает"))
+                { ShowInTaskbar = false, ShowActivated = false, Left = SystemParameters.VirtualScreenLeft - 4000, Top = SystemParameters.VirtualScreenTop };
+                busyManager.Show();
+                var command = (Task)typeof(AwgManagementWindow).GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(busyManager, ["start", "-"])!;
+                busyManager.Close();
+                Require(busyManager.IsVisible, "A busy manager must finish its command before closing for update.");
+                pending.SetResult(0); await command;
+                Require(!busyManager.IsVisible, "A deferred close must complete automatically after the command so update coordination does not hang.");
+            }
         }
     }
     private static void Render(FrameworkElement element, string name)

@@ -14,6 +14,7 @@ public partial class AwgManagementWindow : Window
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(2) };
     private AwgProfileCatalog _catalog = new();
     private bool _busy;
+    private bool _closeRequested;
     private uint _state;
     public AwgManagementWindow(Func<string, string, Task<int>> execute,
         Func<(AwgProfileCatalog Catalog, uint State, string Text)>? read = null)
@@ -25,7 +26,7 @@ public partial class AwgManagementWindow : Window
         SourceInitialized += (_, _) => ThemeService.ApplyWindowChrome(this);
         Loaded += (_, _) => { RefreshState(); _timer.Start(); };
         _timer.Tick += (_, _) => RefreshState();
-        Closing += (_, e) => { if (_busy) { e.Cancel = true; ResultText.Text = "Дождитесь завершения операции."; } };
+        Closing += (_, e) => { if (_busy) { _closeRequested = true; e.Cancel = true; ResultText.Text = "Окно закроется после завершения операции."; } };
         Closed += (_, _) => _timer.Stop();
     }
     public void RefreshState()
@@ -72,6 +73,11 @@ public partial class AwgManagementWindow : Window
             _ => "Отключить VPN у всех пользователей компьютера?"
         };
         if (System.Windows.MessageBox.Show(this, message, "Общий туннель", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        await ExecuteCommandAsync(action, argument);
+    }
+    private async Task ExecuteCommandAsync(string action, string argument)
+    {
+        if (_busy) return;
         _busy = true; Commands.IsEnabled = ProfileList.IsEnabled = false; ResultText.Text = "Выполнение…";
         try
         {
@@ -85,6 +91,10 @@ public partial class AwgManagementWindow : Window
             };
         }
         catch { ResultText.Text = "Ошибка операции. Профиль и ключи не выводятся."; }
-        finally { _busy = false; Commands.IsEnabled = ProfileList.IsEnabled = true; RefreshState(); }
+        finally
+        {
+            _busy = false; Commands.IsEnabled = ProfileList.IsEnabled = true; RefreshState();
+            if (_closeRequested) Close();
+        }
     }
 }
