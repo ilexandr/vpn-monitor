@@ -65,6 +65,9 @@ public partial class AwgManagementWindow : Window
     }
     private void UpdateButtons()
     {
+        var connection = _state == 4 ? AwgConnectionState.Read() : null;
+        TestBackupButton.IsEnabled = connection is { SupportsManualTest: true, ManualTestAvailable: true, Healthy: true, State: "Connected", IsManualTestActive: false } &&
+            ProfileList.SelectedItem is AwgProfileInfo selected && selected.Id == _catalog.SelectedId;
         EditProfileButton.IsEnabled = _readConfig is not null && ProfileList.SelectedItem is AwgProfileInfo;
         ConnectionSettingsButton.IsEnabled = _state == 1 && ProfileList.SelectedItem is AwgProfileInfo;
         SelectButton.IsEnabled = _state == 1 && ProfileList.SelectedItem is AwgProfileInfo;
@@ -88,7 +91,7 @@ public partial class AwgManagementWindow : Window
             if (_backup != options.BackupEndpoint) { _backup = options.BackupEndpoint; _pingAt = default; _pingText = "Узел: ещё не проверялся."; }
             var connection = profile.Id == _catalog.SelectedId && _state == 4 ? AwgConnectionState.Read() : null;
             BackupAvailabilityText.Text = options.BackupEndpoint.Length == 0 ? "Задайте резерв в «Связь и резерв…»." :
-                AwgEndpointHealth.Describe(options.BackupEndpoint, connection) + "\n" + _pingText;
+                AwgEndpointHealth.Describe(options.BackupEndpoint, connection) + "\n" + _pingText + (connection?.ManualText is { Length: > 0 } manual ? "\n" + manual : "");
             if (_backup.Length > 0 && !_probing && DateTimeOffset.Now - _pingAt > TimeSpan.FromSeconds(30)) _ = ProbeBackupAsync(_backup);
         }
         catch { PrimaryEndpointText.Text = "Не удалось прочитать параметры профиля."; BackupEndpointText.Text = BackupAvailabilityText.Text = ""; }
@@ -118,6 +121,14 @@ public partial class AwgManagementWindow : Window
     private async void Command_Click(object sender, RoutedEventArgs e)
     {
         if (_busy || sender is not Button { Tag: string action }) return;
+        if (action == "connection-history") { OwnedWindowBehavior.Attach(new AwgConnectionHistoryWindow(), this).ShowDialog(); return; }
+        if (action == "test-backup")
+        {
+            if (!TestBackupButton.IsEnabled || ProfileList.SelectedItem is not AwgProfileInfo testProfile) return;
+            if (ThemedMessageBox.Show(this, "Временно переключить общий VPN на резервный Endpoint и проверить поступление трафика? Служба сама вернётся к основному после успеха или таймаута. Связь у всех пользователей кратковременно прервётся; закрытие менеджера не отменяет возврат.", "Проверка резерва", MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel, "Проверить") == MessageBoxResult.OK)
+                await ExecuteCommandAsync(action, testProfile.Id);
+            return;
+        }
         if (action == "edit")
         {
             if (ProfileList.SelectedItem is not AwgProfileInfo selected || _readConfig is null) return;
@@ -172,9 +183,9 @@ public partial class AwgManagementWindow : Window
             var code = await (operation is null ? _execute(action, argument) : operation());
             ResultText.Text = code switch
             {
-                0 => "Готово.", 12 => "Сначала остановите туннель; профиль не выбран или служба занята.",
+                0 => action == "test-backup" ? "Запрос передан службе. Ход и результат — в статусе и истории связи." : "Готово.", 12 => "Сначала остановите туннель; профиль не выбран или служба занята.",
                 13 => "Сначала выберите другой профиль.", 14 => "Конфликт маршрутов: подключение не запущено.",
-                15 => "Файл занят, повторите позже.", 16 => "Проверьте конфигурацию и совместимость с настройками связи. Изменения не сохранены.", 19 => "Не удалось восстановить активную копию профиля. Не запускайте службу вручную; выберите профиль заново в менеджере.", 18 => "Профиль изменён в другом окне. Откройте конфигурацию заново; изменения не сохранены.", 17 => "Служба не достигла нужного состояния. Проверьте журнал.",
+                15 => "Файл занят, повторите позже.", 16 => "Проверьте конфигурацию и совместимость с настройками связи. Изменения не сохранены.", 20 => "Проверка сейчас недоступна: нужен работающий основной Endpoint, заданный резерв и свободный бюджет попыток.", 19 => "Не удалось восстановить активную копию профиля. Не запускайте службу вручную; выберите профиль заново в менеджере.", 18 => "Профиль изменён в другом окне. Откройте конфигурацию заново; изменения не сохранены.", 17 => "Служба не достигла нужного состояния. Проверьте журнал.",
                 _ => $"Запрос не выполнен (код {code})."
             };
         }

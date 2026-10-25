@@ -293,22 +293,35 @@ func guardPing(source net.IP, target net.IP) bool {
 	n, _, _ := send.Call(handle, 0, 0, 0, uintptr(binary.LittleEndian.Uint32(source.To4())), uintptr(binary.LittleEndian.Uint32(ip)), uintptr(unsafe.Pointer(&data[0])), uintptr(len(data)), 0, uintptr(unsafe.Pointer(&reply[0])), uintptr(len(reply)), 1000)
 	return n > 0 && binary.LittleEndian.Uint32(reply[4:8]) == 0
 }
-func writeGuardStatus(state string, tcp bool, ping bool, healthy bool, handshake int64, started time.Time, endpoint string) {
+func writeGuardStatus(state string, tcp bool, ping bool, healthy bool, handshake int64, started time.Time, endpoint string, manual ...string) {
 	root, e := conf.RootDirectory(false)
 	if e != nil {
 		return
 	}
 	value := struct {
-		State         string
-		TcpReachable  bool
-		IcmpReachable bool
-		Healthy       bool
-		HandshakeUnix int64
-		StartedAt     time.Time
-		CheckedAt     time.Time
-		ProcessId     int
-		Endpoint      string
-	}{state, tcp, ping, healthy, handshake, started, time.Now(), os.Getpid(), endpoint}
+		State               string
+		TcpReachable        bool
+		IcmpReachable       bool
+		Healthy             bool
+		HandshakeUnix       int64
+		StartedAt           time.Time
+		CheckedAt           time.Time
+		ProcessId           int
+		Endpoint            string
+		ManualTest          string
+		RequestId           string
+		SupportsManualTest  bool
+		ManualTestAvailable bool
+	}{State: state, TcpReachable: tcp, IcmpReachable: ping, Healthy: healthy, HandshakeUnix: handshake, StartedAt: started, CheckedAt: time.Now(), ProcessId: os.Getpid(), Endpoint: endpoint, SupportsManualTest: true}
+	if len(manual) > 0 {
+		value.ManualTest = manual[0]
+	}
+	if len(manual) > 1 {
+		value.RequestId = manual[1]
+	}
+	if len(manual) > 2 {
+		value.ManualTestAvailable = manual[2] == "true"
+	}
 	b, e := json.Marshal(value)
 	if e != nil {
 		return
@@ -365,7 +378,11 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 		var lastReceiveAt time.Time
 		var previousRx uint64
 		var previousHandshake int64
+		endpointUpdateFailed := false
 		lastState := ""
+		var pending *guardRequest
+		lastEvent := ""
+		recordGuardEvent("Started", "", "ServiceStarted", "")
 		primary := ""
 		if len(config.Peers) == 1 {
 			primary = config.Peers[0].Endpoint.String()
@@ -406,27 +423,52 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 			fresh := !lastReceiveAt.IsZero() && now.Sub(lastReceiveAt) < time.Duration(2*p.IntervalSeconds)*time.Second && (lastAction.IsZero() || lastReceiveAt.After(lastAction))
 			// A proxy or a second VPN may satisfy TCP/ICMP without our tunnel.
 			// Require fresh receive/handshake evidence from this AWG device itself.
-			healthy := fresh
+			healthy := fresh && !endpointUpdateFailed
 			state := "Unknown"
 			activeEndpoint := primary
 			if decision.backup {
 				activeEndpoint = p.BackupEndpoint
 			}
-			if target != nil && now.Sub(started) >= 30*time.Second {
+			reason := "Observed"
+			previousManualPhase := decision.manual.phase
+			manualState, manualActive := decision.manualObserve(now, healthy, p)
+			if previousManualPhase == "Testing" && decision.manual.phase == "Returning" {
+				recordGuardEvent("BackupTestResult", p.BackupEndpoint, "Backup"+decision.manual.result, decision.manual.requestID)
+			}
+			if manualActive {
+				state = manualState
+				if state == "Reconnect" || previousManualPhase != decision.manual.phase {
+					reason = "Manual" + decision.manualStatus()
+				}
+			} else if target != nil && now.Sub(started) >= 30*time.Second {
 				state = decision.observe(now, healthy, p)
+				if state == "Reconnect" {
+					reason = "AutomaticReconnect"
+				}
 			} else if !p.Enabled {
 				state = "Disabled"
 			} else if healthy {
 				state = "Connected"
 			}
+			if pending != nil {
+				if !manualActive && target != nil && len(config.Peers) == 1 && now.Sub(started) >= 30*time.Second && decision.beginManual(now, healthy, p, pending.Id) {
+					state = "Reconnect"
+					reason = "ManualTesting"
+				} else {
+					recordGuardEvent("Rejected", activeEndpoint, "ManualRejected", pending.Id)
+				}
+				pending = nil
+			}
 			if state == "Reconnect" {
+				endpointUpdateFailed = false
 				if decision.backup {
 					activeEndpoint = p.BackupEndpoint
 				} else {
 					activeEndpoint = primary
 				}
 				guardAudit("confirmed outage or primary retry; reconnecting shared tunnel")
-				writeGuardStatus("Reconnecting", tcp, ping, healthy, handshake, started, activeEndpoint)
+				writeGuardStatus("Reconnecting", tcp, ping, false, handshake, started, activeEndpoint, decision.manualStatus(), decision.manual.requestID)
+				recordGuardEvent("Reconnecting", activeEndpoint, reason, eventRequestID(reason, decision.manual.requestID))
 				dev.Down()
 				if ctx.Err() != nil {
 					return
@@ -438,6 +480,8 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 						e = dev.IpcSet(request)
 					}
 					if e != nil {
+						endpointUpdateFailed = true
+						recordGuardEvent("ReconnectFailed", activeEndpoint, "EndpointUpdateFailed", "")
 						guardAudit("endpoint update failed")
 					}
 				}
@@ -451,11 +495,23 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 					return
 				}
 				if e := dev.Up(); e != nil {
+					endpointUpdateFailed = true
+					recordGuardEvent("ReconnectFailed", activeEndpoint, "DeviceUpFailed", "")
 					guardAudit("reconnect failed")
 				}
 				lastAction = now
+				healthy = false
+				lastReceiveAt = time.Time{}
+				previousHandshake, previousRx = guardTraffic(dev)
 			}
-			writeGuardStatus(state, tcp, ping, healthy, handshake, started, activeEndpoint)
+			writeGuardStatus(state, tcp, ping, healthy, handshake, started, activeEndpoint, decision.manualStatus(), decision.manual.requestID, strconv.FormatBool(len(config.Peers) == 1 && target != nil && now.Sub(started) >= 30*time.Second && decision.canManual(now, healthy, p)))
+			eventKey := state + "|" + activeEndpoint + "|" + decision.manualStatus()
+			if eventKey != lastEvent {
+				if state != "Reconnect" {
+					recordGuardEvent(state, activeEndpoint, reason, eventRequestID(reason, decision.manual.requestID))
+				}
+				lastEvent = eventKey
+			}
 			if state != lastState {
 				guardAudit(state)
 				lastState = state
@@ -464,14 +520,35 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 			if now.Sub(started) < 60*time.Second && interval > 10 {
 				interval = 10
 			}
-			timer := time.NewTimer(time.Duration(interval) * time.Second)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
+			if decision.manual.phase != "" && interval > 5 {
+				interval = 5
 			}
+			timer := time.NewTimer(time.Duration(interval) * time.Second)
+			poll := time.NewTicker(time.Second)
+		wait:
+			for {
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					poll.Stop()
+					return
+				case <-timer.C:
+					break wait
+				case <-poll.C:
+					if r := consumeGuardRequest(); r != nil {
+						pending = r
+						break wait
+					}
+				}
+			}
+			timer.Stop()
+			poll.Stop()
 		}
 	}()
-	return func() { cancel(); <-done; writeGuardStatus("Stopped", false, false, false, 0, started, "") }
+	return func() {
+		cancel()
+		<-done
+		writeGuardStatus("Stopped", false, false, false, 0, started, "")
+		recordGuardEvent("Stopped", "", "ServiceStopped", "")
+	}
 }

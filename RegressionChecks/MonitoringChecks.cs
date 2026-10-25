@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -19,7 +20,7 @@ internal static class MonitoringChecks
     {
         if (System.Windows.Application.Current is null) { var app = new App(false); app.InitializeComponent(); }
         System.Windows.Application.Current!.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        ProfileEditorChecks.Run(); ConnectionOptions(); Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
+        ProfileEditorChecks.Run(); AwgHistoryChecks.Run(); await UpdateFilePlanChecks.RunAsync(); ConnectionOptions(); Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
         Console.WriteLine("PASS: incident correlation/duration/unknown/DPAPI, notification delay/quiet/maintenance, scoped views, service profiles/budget/recovery and themed monitoring/AWG UI.");
     }
     private static void ConnectionOptions()
@@ -257,6 +258,17 @@ internal static class MonitoringChecks
             var editorSurface = new Border { Child = editorRoot, Background = (Brush)editor.FindResource("AppBackgroundBrush") };
             editorSurface.Measure(new Size(730, 620)); editorSurface.Arrange(new Rect(0, 0, 730, 620));
             Render(editorSurface, "profile-editor-" + theme); editor.Close();
+            var connectionHistory = new AwgConnectionHistoryWindow(()=>[new(DateTimeOffset.Now,"Backup","192.0.2.2:51820","BackupPassed","",1)]);
+            connectionHistory.Refresh();var historyRoot=(FrameworkElement)connectionHistory.Content;connectionHistory.Content=null;
+            var historySurface=new Border {Child=historyRoot,Background=(Brush)connectionHistory.FindResource("AppBackgroundBrush")};
+            TextElement.SetForeground(historySurface,(Brush)connectionHistory.FindResource("TextBrush"));
+            historySurface.Measure(new Size(900,430));historySurface.Arrange(new Rect(0,0,900,430));Render(historySurface,"awg-connection-history-"+theme);connectionHistory.Close();
+            var planWindow=new UpdateFilePlanWindow(new UpdateRelease(1,new Version(0,1,75),""),_=>Task.FromResult(new UpdateFilePlan([new("Client/tunnel.dll",1024,new string('a',64))],480,180000000)));
+            planWindow.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+            var planRoot=(FrameworkElement)planWindow.Content;planWindow.Content=null;
+            var planSurface=new Border {Child=planRoot,Background=(Brush)planWindow.FindResource("AppBackgroundBrush")};
+            TextElement.SetForeground(planSurface,(Brush)planWindow.FindResource("TextBrush"));
+            planSurface.Measure(new Size(700,450));planSurface.Arrange(new Rect(0,0,700,450));Render(planSurface,"update-file-plan-"+theme);planWindow.Close();
             var connectionSettings = new AwgConnectionSettingsWindow("Office VPN", new AwgConnectionOptions());
             var optionsRoot = (DockPanel)connectionSettings.Content;
             var footer = (StackPanel)optionsRoot.Children[0];
@@ -311,7 +323,7 @@ internal static class MonitoringChecks
     {
         element.UpdateLayout(); var image = new RenderTargetBitmap((int)element.ActualWidth, (int)element.ActualHeight, 96, 96, PixelFormats.Pbgra32); image.Render(element);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.74"); Directory.CreateDirectory(directory);
+        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.75"); Directory.CreateDirectory(directory);
         using var output = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(output);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

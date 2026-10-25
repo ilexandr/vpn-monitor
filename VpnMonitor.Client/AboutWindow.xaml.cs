@@ -20,7 +20,7 @@ public partial class AboutWindow : Window
     }
     private async void Check_Click(object sender,RoutedEventArgs e)
     {
-        CheckButton.IsEnabled=false; UpdateButton.IsEnabled=false; _release=null;
+        CheckButton.IsEnabled=false; UpdateButton.IsEnabled=false; FilePlanButton.IsEnabled=false; _release=null;
         StatusText.Text="Проверка GitHub Releases…";
         try
         {
@@ -29,6 +29,7 @@ public partial class AboutWindow : Window
             _release=release;
             NotesText.Text=release?.Notes ?? "";
             StatusText.Text=release is null ? "Опубликованных стабильных релизов пока нет." : release.Version > UpdateService.CurrentVersion ? $"Доступна версия {release.Version}." : "Установлена актуальная версия.";
+            FilePlanButton.IsEnabled=release is not null;
             UpdateButton.IsEnabled=release is not null && release.Version > UpdateService.CurrentVersion;
         }
         catch(OperationCanceledException) { if (!_stop.IsCancellationRequested) StatusText.Text="Превышено время ожидания GitHub."; }
@@ -42,6 +43,7 @@ public partial class AboutWindow : Window
         catch(System.ComponentModel.Win32Exception ex) when(ex.NativeErrorCode==1223) { StatusText.Text="Запрос обновления отменён."; }
         catch(Exception ex) { StatusText.Text=$"Не удалось начать обновление: {ex.Message}"; }
     }
+    private void FilePlan_Click(object sender,RoutedEventArgs e) { if(_release is not null) OwnedWindowBehavior.Attach(new UpdateFilePlanWindow(_release),this).ShowDialog(); }
     private void Repository_Click(object sender,RoutedEventArgs e)
     {
         try { Process.Start(new ProcessStartInfo(UpdateService.Repository) { UseShellExecute=true }); }

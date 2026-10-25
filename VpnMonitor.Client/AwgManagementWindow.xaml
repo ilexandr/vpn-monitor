@@ -39,6 +39,8 @@
     <Button x:Name="RemoveButton" Content="Удалить" Tag="remove" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="StartButton" Content="Подключить" Tag="start" Click="Command_Click" Style="{StaticResource PrimaryButtonStyle}" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="StopButton" Content="Отключить" Tag="stop" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
+    <Button x:Name="TestBackupButton" Content="Проверить резерв…" Tag="test-backup" Click="Command_Click" Padding="12,7" Margin="0,0,8,6" ToolTip="При работающем основном Endpoint: короткое переключение на резерв и возврат. Не чаще одного теста за 10 минут."/>
+    <Button Content="История связи…" Tag="connection-history" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="EditProfileButton" Content="Конфигурация…" Tag="edit" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="ConnectionSettingsButton" Content="Связь и резерв…" Tag="configure" Click="Command_Click" Padding="12,7" Margin="0,0,8,6" ToolTip="Настройки выбранного профиля; сначала отключите туннель"/>
    </WrapPanel>

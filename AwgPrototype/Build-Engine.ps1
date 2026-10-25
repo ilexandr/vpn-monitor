@@ -15,7 +15,7 @@ $env:PATH=$compiler.DirectoryName+';'+(Join-Path $goRoot 'bin')+';'+$env:PATH
 $out=Join-Path $prototypeRoot 'bin'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 # Reapply our small, tracked overlay to the pinned upstream checkout.
-foreach($name in @('vpnmonitor_validate.go','vpnmonitor_guard.go','vpnmonitor_guard_policy.go','vpnmonitor_guard_policy_test.go')){
+foreach($name in @('vpnmonitor_validate.go','vpnmonitor_guard.go','vpnmonitor_guard_policy.go','vpnmonitor_guard_policy_test.go','vpnmonitor_guard_events.go','vpnmonitor_guard_manual_test.go')){
  Copy-Item -LiteralPath (Join-Path $prototypeRoot ('engine-patches\'+$name)) -Destination (Join-Path $engineRoot $name) -Force
 }
 $serviceFile=Join-Path $engineRoot 'service.go'

@@ -35,7 +35,7 @@ internal static class Program
             app.Run(window);
             return 0;
         }
-        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt" or "configure")) return 2;
+        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt" or "configure" or "test-backup")) return 2;
         if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator)) return 10;
         try
         {
@@ -45,6 +45,18 @@ internal static class Program
             var state = AwgServiceStatus.Read().State;
             switch(args[0])
             {
+                case "test-backup":
+                {
+                    var profile = Find(catalog,args[1]);
+                    var status = AwgServiceStatus.Read(); var connection = AwgConnectionState.Read();
+                    var options = ReadOptions(profile.Id);
+                    if(state!=4 || status.State!=4 || catalog.SelectedId!=profile.Id || !options.Enabled || options.BackupEndpoint.Length==0 ||
+                        connection is not { SupportsManualTest:true, ManualTestAvailable:true, Healthy:true, State:"Connected", IsManualTestActive:false }) return 20;
+                    var path=Path.Combine(Data,"connection-command.json");
+                    if(File.Exists(path)) return 20;
+                    WriteAtomic(path,JsonSerializer.Serialize(new { Id=Guid.NewGuid().ToString("N"), ProcessId=status.ProcessId, CreatedAt=DateTimeOffset.UtcNow, Action="TestBackup" }));
+                    return 0;
+                }
                 case "configure":
                 {
                     if(state != 1) return 12;

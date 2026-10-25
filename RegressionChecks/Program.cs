@@ -25,6 +25,7 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--live-file-plan")) { await UpdateFilePlanChecks.RunLiveAsync(); exitCode=0; return; }
                 if (args.Contains("--live-access")) { await LiveAccessChecks.RunAsync(); exitCode = 0; return; }
                 if (args.Contains("--interface-only")) { await InterfaceChecks.RunAsync(); exitCode = 0; return; }
                 if (args.Contains("--monitoring-only")) { await MonitoringChecks.RunAsync(); exitCode = 0; return; }
