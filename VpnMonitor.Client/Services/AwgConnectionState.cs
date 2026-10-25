@@ -6,7 +6,7 @@ public sealed record AwgConnectionState(string State, bool TcpReachable, long Ha
 {
     public string ManualText => ManualTest switch { "Testing" => "Ручная проверка резерва", "Returning" => "Возврат к основному Endpoint",
         "Passed" => "Последняя проверка: резерв исправен; возврат был подтверждён", "Failed" => "Последняя проверка: резерв не ответил; возврат был подтверждён",
-        "ReturnFailed" => "Возврат основного не подтверждён; работает автовосстановление", _ => "" };
+        "ReturnFailed" => "Последняя проверка: возврат основного не удался; было включено автовосстановление", _ => "" };
     public bool IsManualTestActive => ManualTest is "Testing" or "Returning";
     public string Text => State switch
     {
