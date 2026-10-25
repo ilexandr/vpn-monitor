@@ -27,14 +27,17 @@
    <TextBlock Grid.Row="3" x:Name="ResultText" TextWrapping="Wrap" Margin="0,12,0,0" Foreground="{DynamicResource MutedBrush}"/>
   </Grid>
   <Border Grid.Row="2" Padding="22,12" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
-   <WrapPanel x:Name="Commands">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <WrapPanel x:Name="Commands" Margin="0,0,8,0">
     <Button Content="Добавить .conf" Tag="import" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="SelectButton" Content="Выбрать" Tag="select" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="RemoveButton" Content="Удалить" Tag="remove" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="StartButton" Content="Подключить" Tag="start" Click="Command_Click" Style="{StaticResource PrimaryButtonStyle}" Padding="12,7" Margin="0,0,8,6"/>
     <Button x:Name="StopButton" Content="Отключить" Tag="stop" Click="Command_Click" Padding="12,7" Margin="0,0,8,6"/>
-    <Button Content="Закрыть" Click="Close_Click" Padding="12,7" Margin="0,0,0,6"/>
+    <Button x:Name="ConnectionSettingsButton" Content="Связь и резерв…" Tag="configure" Click="Command_Click" Padding="12,7" Margin="0,0,8,6" ToolTip="Настройки выбранного профиля; сначала отключите туннель"/>
    </WrapPanel>
+   <Button Grid.Column="1" Content="Закрыть" IsCancel="True" Click="Close_Click" Padding="12,7" Margin="0,0,0,6" VerticalAlignment="Bottom"/>
+   </Grid>
   </Border>
  </Grid>
 </Window>

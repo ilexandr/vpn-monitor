@@ -56,8 +56,8 @@
    </ScrollViewer>
   </Grid>
   <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-   <Button Content="Отмена" IsCancel="True" Padding="16,7" Margin="0,0,8,0"/>
    <Button Content="Сохранить" Style="{StaticResource PrimaryButtonStyle}" Click="Save_Click" Padding="16,7"/>
+   <Button Content="Отмена" IsCancel="True" Padding="16,7" Margin="8,0,0,0"/>
   </StackPanel>
  </Grid></Border>
 </Window>

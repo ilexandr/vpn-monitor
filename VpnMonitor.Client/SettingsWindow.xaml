@@ -227,8 +227,8 @@
  <Button Content="Экспорт..." Height="34" Padding="10,4" Click="Export_Click" ToolTip="Экспорт сохранённых настроек без пароля"/>
 </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Отмена" Width="90" Height="34" Margin="0,0,8,0" IsCancel="True" />
             <Button Style="{StaticResource PrimaryButtonStyle}" Content="Сохранить" Width="100" Height="34" IsDefault="True" Click="Save_Click" />
+            <Button Content="Отмена" Width="90" Height="34" Margin="8,0,0,0" IsCancel="True" />
           </StackPanel>
         </Grid>
       </StackPanel>

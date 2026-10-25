@@ -30,12 +30,12 @@ internal static class Program
             var app = new VpnMonitor.Client.App(false);
             app.InitializeComponent();
             ThemeService.Apply(args.Length == 2 ? args[1] : new SettingsService().Load().Theme);
-            var window = new VpnMonitor.Client.AwgManagementWindow((action, argument) => Task.Run(() => Execute(action, argument)));
+            var window = new VpnMonitor.Client.AwgManagementWindow((action, argument) => Task.Run(() => Execute(action, argument)), readOptions: ReadOptions);
             using var updater = new UpdateParticipant("Manager", () => window.Dispatcher.BeginInvoke(new Action(() => window.Close())));
             app.Run(window);
             return 0;
         }
-        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt")) return 2;
+        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt" or "configure")) return 2;
         if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator)) return 10;
         try
         {
@@ -45,6 +45,17 @@ internal static class Program
             var state = AwgServiceStatus.Read().State;
             switch(args[0])
             {
+                case "configure":
+                {
+                    if(state != 1) return 12;
+                    if(args[1].Length > 16384) return 16;
+                    var request = JsonSerializer.Deserialize<AwgConnectionRequest>(args[1]) ?? throw new ArgumentException();
+                    var profile = Find(catalog, request.ProfileId);
+                    request.Options.Validate(MachineProfile.Read(ProfilePath(profile.Id)));
+                    WriteAtomic(Path.Combine(Data, profile.Id + ".connection.json"), JsonSerializer.Serialize(request.Options));
+                    if(catalog.SelectedId == profile.Id) WriteAtomic(Path.Combine(Data,"connection-policy.json"), JsonSerializer.Serialize(request.Options));
+                    return 0;
+                }
                 case "import":
                 {
                     var path = Path.GetFullPath(args[1]);
@@ -74,8 +85,10 @@ internal static class Program
                         if(state!=1)return 12;
                         catalog.SelectedId=null;
                         File.Delete(Path.Combine(Data,"profile.dpapi"));
+                        File.Delete(Path.Combine(Data,"connection-policy.json"));
                     }
                     File.Delete(ProfilePath(profile.Id));
+                    File.Delete(Path.Combine(Data,profile.Id+".connection.json"));
                     catalog.Profiles.Remove(profile); Save(catalog); return 0;
                 }
                 case "adopt":
@@ -121,8 +134,20 @@ internal static class Program
         var next = target+".new";
         File.Copy(ProfilePath(profile.Id),next,true);
         File.Move(next,target,true);
+        var options = ReadOptions(profile.Id);
+        options.Validate(config);
+        WriteAtomic(Path.Combine(Data,"connection-policy.json"), JsonSerializer.Serialize(options));
         catalog.SelectedId=profile.Id;
     }
+    private static AwgConnectionOptions ReadOptions(string id)
+    {
+        if(!Guid.TryParseExact(id,"N",out _)) throw new ArgumentException();
+        var path=Path.Combine(Data,id+".connection.json");
+        var options=File.Exists(path) ? JsonSerializer.Deserialize<AwgConnectionOptions>(File.ReadAllText(path)) ?? throw new ArgumentException() : new();
+        options.Validate(); return options;
+    }
+    private static void WriteAtomic(string path,string text)
+    { File.WriteAllText(path+".new",text); File.Move(path+".new",path,true); }
     private static void Save(AwgProfileCatalog catalog)
     {
         var next=CatalogFile+".new";

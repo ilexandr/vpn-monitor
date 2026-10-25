@@ -55,6 +55,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _trayClickTimer = new();
     private long _ignoreTrayClickUntil;
     private System.Windows.Forms.ContextMenuStrip? _trayMenu;
+    private TrayMenuHost? _trayMenuHost;
     private System.Drawing.Icon? _trayOwnedIcon;
     private TrayNetworkPopup? _trayNetworkPopup;
     private readonly AutostartService _autostartService = new();
@@ -183,18 +184,13 @@ public partial class MainWindow : Window
             };
             trayIcon.MouseClick += TrayIcon_MouseClick;
 
-            var trayMenu = new System.Windows.Forms.ContextMenuStrip { ShowImageMargin = false,
-                Font = new System.Drawing.Font("Segoe UI", 10), Padding = new System.Windows.Forms.Padding(6) };
-            trayMenu.Opening += (_, _) =>
+            var trayMenu = new System.Windows.Forms.ContextMenuStrip();
+            trayMenu.Items.Add("VPN Monitor"); // Keeps native keyboard/context invocation enabled.
+            trayMenu.Opening += (_, e) =>
             {
-                _trayClickTimer.Stop(); _trayNetworkPopup?.Close(); TrayMenuTheme.Apply(trayMenu);
+                e.Cancel = true;
+                Dispatcher.BeginInvoke(new Action(ShowTrayContextMenu));
             };
-            trayMenu.Items.Add("Открыть", null, (_, _) => Dispatcher.Invoke(ShowFromTray));
-            trayMenu.Items.Add("Обновить", null, (_, _) => Dispatcher.InvokeAsync(RefreshDataAsync));
-            trayMenu.Items.Add("Сетевые интерфейсы", null, (_, _) => Dispatcher.Invoke(ToggleTrayNetworkPopup));
-            trayMenu.Items.Add("Настройки…", null, (_, _) => Dispatcher.Invoke(() => { ShowFromTray(); Settings_Click(this, new RoutedEventArgs()); }));
-            trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-            trayMenu.Items.Add("Выход", null, (_, _) => Dispatcher.Invoke(CloseFromTray));
             trayIcon.ContextMenuStrip = trayMenu;
             _trayMenu = trayMenu;
 
@@ -214,6 +210,33 @@ public partial class MainWindow : Window
             _trayOwnedIcon?.Dispose();
             _trayOwnedIcon = null;
         }
+    }
+
+    private System.Windows.Controls.ContextMenu BuildTrayContextMenu()
+    {
+        var menu = new System.Windows.Controls.ContextMenu();
+        var style = (Style)FindResource("ActionMenuItemStyle");
+        void Add(string label, Action action)
+        {
+            var item = new System.Windows.Controls.MenuItem { Header = label, Style = style };
+            item.Click += (_, e) => { e.Handled = true; menu.IsOpen = false; action(); };
+            menu.Items.Add(item);
+        }
+        Add("Открыть VPN Monitor", ShowFromTray);
+        Add("Обновить", () => _ = RefreshDataAsync());
+        Add("Сетевые интерфейсы", ToggleTrayNetworkPopup);
+        Add("Настройки…", () => { ShowFromTray(); Settings_Click(this, new RoutedEventArgs()); });
+        menu.Items.Add(new System.Windows.Controls.Separator { Style = (Style)FindResource("ContextSeparatorStyle") });
+        Add("Выход", CloseFromTray);
+        return menu;
+    }
+    private void ShowTrayContextMenu()
+    {
+        if (_allowExit) return;
+        _trayClickTimer.Stop(); _trayNetworkPopup?.Close(); _trayMenuHost?.Close();
+        var host = new TrayMenuHost(BuildTrayContextMenu());
+        host.Closed += (_, _) => { if (ReferenceEquals(_trayMenuHost, host)) _trayMenuHost = null; };
+        _trayMenuHost = host; host.Show(); host.Activate();
     }
 
     private void NetworkAddressChanged(object? sender, EventArgs e)
@@ -1633,6 +1656,7 @@ public partial class MainWindow : Window
 
     private void ShowFromTray()
     {
+        _trayClickTimer.Stop(); _trayMenuHost?.Close();
         _trayNetworkPopup?.Close();
 
         Show();
@@ -1671,6 +1695,7 @@ public partial class MainWindow : Window
 
         _allowExit = true;
         _trayClickTimer.Stop();
+        _trayMenuHost?.Close(); _trayMenuHost = null;
         _trayMenu?.Dispose(); _trayMenu = null;
         SaveWindowState();
         _historySaveTimer.Stop();

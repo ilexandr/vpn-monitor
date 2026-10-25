@@ -28,7 +28,9 @@ public partial class AwgStatusWindow : Window
         {
             var status = AwgServiceStatus.Read();
             ServiceStatus.Text = status.Text;
-            HealthText.Text = _health?.Invoke() ?? "Проверка доступности выполняется в основном окне приложения.";
+            var connection = status.State == 4 ? AwgConnectionState.Read() : null;
+            HealthText.Text = (_health?.Invoke() ?? "Проверка доступности выполняется в основном окне приложения.") +
+                (connection is null ? "" : "\n\nОбщий контроль службы:\n" + connection.Details);
             var catalog = AwgProfileCatalogReader.Read();
             var selected = catalog.Profiles.FirstOrDefault(p => p.Id == catalog.SelectedId);
             SelectedProfileText.Text = selected is null ? "Профиль не выбран" : $"Выбран для подключения: {selected.Name}";

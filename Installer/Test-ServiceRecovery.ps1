@@ -20,6 +20,9 @@ function Get-Service {
  $service | Add-Member ScriptMethod WaitForStatus {param($status,$timeout) if($global:serviceState -ne $status){throw 'Unexpected service state'}}
  return $service
 }
+function Test-MonitorTunnelConnection {param($processId) return !$global:connectionFailed}
+function Stop-Service {param($Name) $global:serviceState='Stopped';$global:stops++}
+$global:connectionFailed=$false;$global:stops=0
 $global:binary=$expected;$global:serviceState='Stopped';$global:attempts=0;$global:failures=0
 Restore-MonitorTunnel $false $expected $log
 if($global:attempts){throw 'Previously stopped service was started'}
@@ -36,4 +39,7 @@ try{Restore-MonitorTunnel $true $expected $log;throw 'Foreign service accepted'}
  if($_.Exception.Message -notlike '*Unexpected service configuration*'){throw}
 }
 if($global:attempts){throw 'Foreign service was started'}
+$global:binary=$expected;$global:serviceState='Running';$global:attempts=0;$global:failures=0;$global:connectionFailed=$true
+try{Restore-MonitorTunnel $true $expected $log;throw 'False Running accepted'}catch{if($_.Exception.Message -notlike '*connectivity/handshake*'){throw}}
+if($global:stops -ne 2){throw 'Unhealthy Running service was not retried with bounded restarts'}
 Write-Output 'PASS: stopped service preserved, transient retry, bounded permanent failure with exit codes, foreign service rejected.'

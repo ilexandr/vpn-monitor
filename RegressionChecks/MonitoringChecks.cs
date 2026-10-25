@@ -19,8 +19,24 @@ internal static class MonitoringChecks
     {
         if (System.Windows.Application.Current is null) { var app = new App(false); app.InitializeComponent(); }
         System.Windows.Application.Current!.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
+        ConnectionOptions(); Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
         Console.WriteLine("PASS: incident correlation/duration/unknown/DPAPI, notification delay/quiet/maintenance, scoped views, service profiles/budget/recovery and themed monitoring/AWG UI.");
+    }
+    private static void ConnectionOptions()
+    {
+        const string config = "[Interface]\nAddress = 10.20.0.2/32\n[Peer]\nAllowedIPs = 10.20.0.0/24\n";
+        var options = new AwgConnectionOptions { ProbeHost = "10.20.0.1", BackupEndpoint = "192.0.2.2:51820" };
+        options.Validate(config);
+        var copy = JsonSerializer.Deserialize<AwgConnectionOptions>(JsonSerializer.Serialize(options))!;
+        Require(copy.Enabled && copy.PreferPhysical && copy.BackupEndpoint == options.BackupEndpoint && !copy.ReturnToPrimary, "Shared recovery options must round-trip without enabling disruptive failback by default.");
+        foreach (var invalid in new[] {
+            new AwgConnectionOptions { ProbeHost = "192.0.2.1" }, new AwgConnectionOptions { ProbeHost = "10.20.0.2" },
+            new AwgConnectionOptions { BackupEndpoint = "192.0.2.2:0" }, new AwgConnectionOptions { BackupEndpoint = "192.0.2.2:51820\npublic_key=bad" },
+            new AwgConnectionOptions { IntervalSeconds = 1 }, new AwgConnectionOptions { CooldownSeconds = 0 } })
+        {
+            try { invalid.Validate(config); throw new Exception("Invalid connection policy accepted."); } catch (ArgumentException) { }
+        }
+        try { options.Validate(config + "[Peer]\nAllowedIPs = 10.30.0.0/24\n"); throw new Exception("Ambiguous multi-peer failover accepted."); } catch (ArgumentException) { }
     }
     private static void Incidents()
     {
@@ -231,19 +247,32 @@ internal static class MonitoringChecks
                 Render(content, "awg-manager-min-" + theme);
             }
             finally { manager.Close(); }
+            var connectionSettings = new AwgConnectionSettingsWindow("Office VPN", new AwgConnectionOptions());
+            var optionsRoot = (DockPanel)connectionSettings.Content;
+            var footer = (StackPanel)optionsRoot.Children[0];
+            Require(footer.Children[^1] is Button { IsCancel: true }, "Connection settings Cancel must be the rightmost button.");
+            connectionSettings.Content = null;
+            var optionsSurface = new Border { Child = optionsRoot, Background = (Brush)connectionSettings.FindResource("AppBackgroundBrush") };
+            optionsSurface.Measure(new Size(600, 620)); optionsSurface.Arrange(new Rect(0, 0, 600, 620));
+            Render(optionsSurface, "connection-settings-" + theme); connectionSettings.Close();
             var confirmation = new ThemedMessageBox("Отключить VPN у всех пользователей компьютера?", "Общий туннель",
                 MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel, "Отключить");
+            var dialogRoot = (Grid)((Border)confirmation.Content).Child;
+            Require(((StackPanel)dialogRoot.Children[2]).Children[^1] is Button { IsCancel: true }, "Confirmation Cancel must be rightmost and remain the safe default.");
             var dialogContent = (FrameworkElement)confirmation.Content;
             dialogContent.Measure(new Size(452, 300)); dialogContent.Arrange(new Rect(0, 0, 452, dialogContent.DesiredSize.Height));
             Render(dialogContent, "confirmation-" + theme);
             Require(confirmation.Result == MessageBoxResult.Cancel, "Closing confirmation must default to cancel."); confirmation.Close();
-            using (var menu = new System.Windows.Forms.ContextMenuStrip())
+            var trayWindow = new MainWindow(); ThemeService.Apply(theme);
+            try
             {
-                menu.Items.Add("Открыть"); TrayMenuTheme.Apply(menu);
-                var expected = ((SolidColorBrush)System.Windows.Application.Current.FindResource("PanelBrush")).Color;
-                Require(menu.BackColor.R == expected.R && menu.BackColor.G == expected.G && menu.BackColor.B == expected.B,
-                    "Tray menu must use the active application theme.");
+                var menu = (System.Windows.Controls.ContextMenu)typeof(MainWindow).GetMethod("BuildTrayContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(trayWindow, null)!;
+                Require(menu.Items.Count == 6 && menu.Items.OfType<MenuItem>().All(i => ReferenceEquals(i.Style, trayWindow.FindResource("ActionMenuItemStyle"))),
+                    "Tray must use the same WPF action menu style as client menus.");
+                menu.Measure(new Size(280, 400)); menu.Arrange(new Rect(0, 0, 280, menu.DesiredSize.Height));
+                Render(menu, "tray-menu-" + theme);
             }
+            finally { trayWindow.Close(); }
             if (theme == ThemeService.Dark)
             {
                 var pending = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -269,7 +298,7 @@ internal static class MonitoringChecks
     {
         element.UpdateLayout(); var image = new RenderTargetBitmap((int)element.ActualWidth, (int)element.ActualHeight, 96, 96, PixelFormats.Pbgra32); image.Render(element);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.72"); Directory.CreateDirectory(directory);
+        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.73"); Directory.CreateDirectory(directory);
         using var output = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(output);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

@@ -1,6 +1,6 @@
 {
   "UpstreamCommit": "e90531d15802cb976773f3b63443bc281f738ca3",
-  "LocalPatch": "engine-patches/vpnmonitor_validate.go adds validation-only and isolated-service exports; upstream files unchanged",
+  "LocalPatch": "Tracked engine-patches overlay: validation exports plus connection watchdog, physical endpoint routes and bounded endpoint failover; Build-Engine.ps1 patches pinned service.go reproducibly.",
   "WintunSource": "C:\\Program Files\\AmneziaWG\\wintun.dll",
   "WintunSha256": "E5DA8447DC2C320EDC0FC52FA01885C103DE8C118481F683643CACC3220DAFCE",
   "WintunSignature": "Valid (WireGuard LLC)"

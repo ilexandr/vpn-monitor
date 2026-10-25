@@ -41,9 +41,9 @@ public sealed class ThemedMessageBox : Window
             button.Click += (_, _) => { Result = result; DialogResult = result == accept; };
             actions.Children.Add(button);
         }
+        Add(acceptText ?? (yesNo ? "Да" : buttons == MessageBoxButton.OK ? "Закрыть" : "Продолжить"), accept, true);
         if (buttons == MessageBoxButton.YesNoCancel) Add("Нет", MessageBoxResult.No);
         if (buttons != MessageBoxButton.OK) Add(buttons == MessageBoxButton.YesNo ? "Нет" : "Отмена", dismiss);
-        Add(acceptText ?? (yesNo ? "Да" : buttons == MessageBoxButton.OK ? "Понятно" : "Продолжить"), accept, true);
         var surface = new Border { Child = root, Padding = new Thickness(24) };
         surface.SetResourceReference(BackgroundProperty, "AppBackgroundBrush");
         Content = surface;
