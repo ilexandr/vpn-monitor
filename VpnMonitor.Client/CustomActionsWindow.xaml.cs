@@ -112,7 +112,7 @@ public partial class CustomActionsWindow : Window
         }
         catch (ArgumentException ex)
         {
-            ThemedMessageBox.Show(this, ex.Message, "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ThemedMessageBox.Show(this, ex.Message, "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }

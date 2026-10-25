@@ -233,21 +233,21 @@ public partial class SettingsWindow : Window
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             ThemedMessageBox.Show(this, "Введите корректный адрес вида http://10.20.0.1 или https://vpn.example.com.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
         {
             ThemedMessageBox.Show(this, "Логин и пароль не должны быть пустыми.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
         if (!int.TryParse(RefreshSecondsBox.Text, out refreshSeconds) || refreshSeconds is < 2 or > 300)
         {
             ThemedMessageBox.Show(this, "Интервал обновления должен быть от 2 до 300 секунд.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
@@ -261,7 +261,7 @@ public partial class SettingsWindow : Window
         if (!anyColumn)
         {
             ThemedMessageBox.Show(this, "Оставьте включенной хотя бы одну колонку таблицы.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
@@ -327,7 +327,7 @@ public partial class SettingsWindow : Window
 
     private void Export_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Настройки VPN Monitor (*.json)|*.json", FileName = "VpnMonitor-settings.json" };
+        var dialog = new Microsoft.Win32.SaveFileDialog { Filter = "Настройки AWG Dash Monitor (*.json)|*.json", FileName = "VpnMonitor-settings.json" };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
@@ -339,7 +339,7 @@ public partial class SettingsWindow : Window
 
     private void Import_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new OpenFileDialog { Filter = "Настройки VPN Monitor (*.json)|*.json", CheckFileExists = true };
+        var dialog = new OpenFileDialog { Filter = "Настройки AWG Dash Monitor (*.json)|*.json", CheckFileExists = true };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
@@ -379,7 +379,7 @@ public partial class SettingsWindow : Window
         if (!int.TryParse(RadminPortBox.Text, out var radminPort) || radminPort is < 1 or > 65535)
         {
             ThemedMessageBox.Show(this, "Порт Radmin Server должен быть от 1 до 65535.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -387,7 +387,7 @@ public partial class SettingsWindow : Window
         if (RadminAutofillUsernameCheckBox.IsChecked == true && string.IsNullOrWhiteSpace(radminUsername))
         {
             ThemedMessageBox.Show(this, "Укажите логин Radmin или отключите автоматическую подстановку логина.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -395,13 +395,13 @@ public partial class SettingsWindow : Window
             !int.TryParse(ActiveCheckTcpPortBox.Text, out var activePort) || activePort is < 1 or > 65535)
         {
             ThemedMessageBox.Show(this, "Укажите интервал проверки от 2 до 300 секунд и TCP-порт от 1 до 65535.",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         if (StatusNotificationsEnabledCheckBox.IsChecked == true && NotificationSourceBox.SelectedIndex == 0 && ActiveChecksEnabledBox.IsChecked != true)
         {
             ThemedMessageBox.Show(this, "Для активных уведомлений включите проверки доступности или выберите источник «Статус AWG».",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         if (_pendingImport is not null)
@@ -416,7 +416,7 @@ public partial class SettingsWindow : Window
             }
             catch (Exception ex)
             {
-                ThemedMessageBox.Show(this, $"Импорт не применён: {ex.Message}", "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedMessageBox.Show(this, $"Импорт не применён: {ex.Message}", "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -462,7 +462,7 @@ public partial class SettingsWindow : Window
         {
             ThemedMessageBox.Show(this,
                 $"Не удалось сохранить настройки.\n\n{ex.Message}",
-                "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 

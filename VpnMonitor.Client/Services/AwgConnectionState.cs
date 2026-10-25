@@ -23,6 +23,8 @@ public sealed record AwgConnectionState(string State, bool TcpReachable, long Ha
             var state = JsonSerializer.Deserialize<AwgConnectionState>(File.ReadAllText(path));
             if (state is null || state.HandshakeUnix < 0 || state.HandshakeUnix > DateTimeOffset.MaxValue.ToUnixTimeSeconds() ||
                 DateTimeOffset.Now - state.CheckedAt > TimeSpan.FromMinutes(6) || state.CheckedAt > DateTimeOffset.Now.AddMinutes(1)) return null;
+            var service = AwgServiceStatus.Read();
+            if(service.State != 4 || service.ProcessId != state.ProcessId) return null;
             return state;
         }
         catch { return null; }

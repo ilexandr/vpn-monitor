@@ -1,6 +1,6 @@
 <Window x:Class="VpnMonitor.Client.MonitoringWindow"
  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- Title="VPN Monitor — мониторинг" Width="1080" Height="760" MinWidth="860" MinHeight="560"
+ Title="AWG Dash Monitor — мониторинг" Width="1080" Height="760" MinWidth="860" MinHeight="560"
  WindowStartupLocation="CenterOwner" Icon="Assets/AWG_Monitor.ico" Style="{StaticResource {x:Type Window}}">
  <Grid Background="{DynamicResource AppBackgroundBrush}">
   <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>

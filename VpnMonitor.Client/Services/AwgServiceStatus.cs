@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 namespace VpnMonitor.Client.Services;
-public sealed record AwgServiceSnapshot(uint State, uint ExitCode)
+public sealed record AwgServiceSnapshot(uint State, uint ExitCode, uint ProcessId = 0)
 {
     public string Text => State switch { 0 => "Служба не установлена", 1 => "Остановлена", 2 => "Запускается", 3 => "Останавливается", 4 => "Работает", _ => "Переходное состояние" };
 }
@@ -30,7 +30,7 @@ public static class AwgServiceStatus
                 throw new Win32Exception(error);
             }
             if(!QueryServiceStatusEx(service,0,out var status,Marshal.SizeOf<Status>(),out _)) throw new Win32Exception();
-            return new(status.State,status.Win32Exit == 1066 ? status.SpecificExit : status.Win32Exit);
+            return new(status.State,status.Win32Exit == 1066 ? status.SpecificExit : status.Win32Exit, status.ProcessId);
         }
         finally { if(service != IntPtr.Zero) CloseServiceHandle(service); CloseServiceHandle(manager); }
     }

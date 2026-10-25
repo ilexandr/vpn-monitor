@@ -163,7 +163,7 @@ public partial class MainWindow : Window
 
             var trayIcon = new System.Windows.Forms.NotifyIcon
             {
-                Text = "VPN Monitor",
+                Text = "AWG Dash Monitor",
                 Icon = _trayOwnedIcon,
                 Visible = true
             };
@@ -185,7 +185,7 @@ public partial class MainWindow : Window
             trayIcon.MouseClick += TrayIcon_MouseClick;
 
             var trayMenu = new System.Windows.Forms.ContextMenuStrip();
-            trayMenu.Items.Add("VPN Monitor"); // Keeps native keyboard/context invocation enabled.
+            trayMenu.Items.Add("AWG Dash Monitor"); // Keeps native keyboard/context invocation enabled.
             trayMenu.Opening += (_, e) =>
             {
                 e.Cancel = true;
@@ -222,7 +222,7 @@ public partial class MainWindow : Window
             item.Click += (_, e) => { e.Handled = true; menu.IsOpen = false; action(); };
             menu.Items.Add(item);
         }
-        Add("Открыть VPN Monitor", ShowFromTray);
+        Add("Открыть AWG Dash Monitor", ShowFromTray);
         Add("Обновить", () => _ = RefreshDataAsync());
         Add("Сетевые интерфейсы", ToggleTrayNetworkPopup);
         Add("Настройки…", () => { ShowFromTray(); Settings_Click(this, new RoutedEventArgs()); });
@@ -305,13 +305,13 @@ public partial class MainWindow : Window
         {
             var count = GetIpv4NetworkItems().Count;
             _trayIcon.Text = count == 0
-                ? "VPN Monitor • IPv4 нет"
-                : $"VPN Monitor • {count} IPv4";
+                ? "AWG Dash Monitor • IPv4 нет"
+                : $"AWG Dash Monitor • {count} IPv4";
         }
         catch (Exception ex)
         {
             App.Log("Failed to update tray IPv4 tooltip.", ex);
-            try { _trayIcon.Text = "VPN Monitor"; } catch { }
+            try { _trayIcon.Text = "AWG Dash Monitor"; } catch { }
         }
     }
 
@@ -399,7 +399,7 @@ public partial class MainWindow : Window
             if (!OpenSettings())
             {
                 ThemedMessageBox.Show(this, "Без настроек подключения приложение не сможет получить список клиентов.",
-                    "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
+                    "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
                 return false;
             }
 
@@ -763,7 +763,7 @@ public partial class MainWindow : Window
     {
         if (_trayIcon is null) InitializeTray();
         if (_trayIcon is null) throw new InvalidOperationException("Значок в трее недоступен.");
-        _trayIcon.ShowBalloonTip(5000, "VPN Monitor", "Тестовое уведомление. Проверка не меняет статусы клиентов и туннеля.", System.Windows.Forms.ToolTipIcon.Info);
+        _trayIcon.ShowBalloonTip(5000, "AWG Dash Monitor", "Тестовое уведомление. Проверка не меняет статусы клиентов и туннеля.", System.Windows.Forms.ToolTipIcon.Info);
         App.Log("Windows test notification requested by user.");
     }
 
@@ -1162,7 +1162,7 @@ public partial class MainWindow : Window
 
         ThemedMessageBox.Show(this,
             "У клиента нет корректного VPN IP.",
-            "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
+            "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
         return false;
     }
 
@@ -1238,7 +1238,7 @@ public partial class MainWindow : Window
             if (executable is null)
             {
                 ThemedMessageBox.Show(this, "В Windows не найден ssh.exe. Добавьте компонент «Клиент OpenSSH» в дополнительных компонентах Windows.",
-                    "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
+                    "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
             var owner = System.Windows.Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? this;
@@ -1335,7 +1335,7 @@ public partial class MainWindow : Window
                 var message = ex is System.ComponentModel.Win32Exception native
                     ? NetworkShareService.DescribeError(native.NativeErrorCode) : ex.Message;
                 ThemedMessageBox.Show(owner ?? this, $"Не удалось открыть {path ?? ip}.\n\n{message}",
-                    "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
         finally
@@ -1365,7 +1365,7 @@ public partial class MainWindow : Window
         {
             var answer = ThemedMessageBox.Show(this,
                 "Radmin Viewer не найден. Укажите путь к Radmin.exe в настройках.\n\nОткрыть настройки сейчас?",
-                "VPN Monitor", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                "AWG Dash Monitor", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
             if (answer != MessageBoxResult.Yes || !OpenSettings())
                 return;
@@ -1430,7 +1430,7 @@ public partial class MainWindow : Window
     {
         App.Log(message, ex);
         ThemedMessageBox.Show(this, $"{message}\n\n{ex.Message}",
-            "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+            "AWG Dash Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void ShowStatusHint(string message, bool autoClear = true)
@@ -1476,7 +1476,7 @@ public partial class MainWindow : Window
 
     private void OpenVpnMonitorWeb_Click(object sender, RoutedEventArgs e)
     {
-        OpenWebAddress("http://10.20.0.1/", "VPN Monitor");
+        OpenWebAddress("http://10.20.0.1/", "AWG Dash Monitor");
     }
 
     private void OpenWgDashboardPeers_Click(object sender, RoutedEventArgs e)

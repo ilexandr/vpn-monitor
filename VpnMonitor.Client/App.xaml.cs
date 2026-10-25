@@ -110,8 +110,8 @@ public partial class App : System.Windows.Application
         try
         {
             System.Windows.MessageBox.Show(
-                $"VPN Monitor не смог запуститься.\n\n{ex.Message}\n\nЛог:\n{LogPath}",
-                "VPN Monitor — ошибка запуска",
+                $"AWG Dash Monitor не смог запуститься.\n\n{ex.Message}\n\nЛог:\n{LogPath}",
+                "AWG Dash Monitor — ошибка запуска",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }

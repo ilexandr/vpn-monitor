@@ -19,7 +19,7 @@ internal static class MonitoringChecks
     {
         if (System.Windows.Application.Current is null) { var app = new App(false); app.InitializeComponent(); }
         System.Windows.Application.Current!.ShutdownMode = ShutdownMode.OnExplicitShutdown;
-        ConnectionOptions(); Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
+        ProfileEditorChecks.Run(); ConnectionOptions(); Incidents(); Rules(); ViewsAndTransfer(); await ServicesAsync(); await WindowsAsync();
         Console.WriteLine("PASS: incident correlation/duration/unknown/DPAPI, notification delay/quiet/maintenance, scoped views, service profiles/budget/recovery and themed monitoring/AWG UI.");
     }
     private static void ConnectionOptions()
@@ -232,11 +232,14 @@ internal static class MonitoringChecks
             finally { window.Close(); }
             var catalog = new AwgProfileCatalog { SelectedId = new string('a', 32), Profiles = [new(new string('a', 32), "Office VPN"), new(new string('b', 32), "Reserve VPN")] };
             uint state = 1;
-            var manager = new AwgManagementWindow((_, _) => throw new Exception("Read-only style checks must never execute an AWG command"), () => (catalog, state, state == 1 ? "Остановлена" : "Работает"));
+            var manager = new AwgManagementWindow((_, _) => throw new Exception("Read-only style checks must never execute an AWG command"), () => (catalog, state, state == 1 ? "Остановлена" : "Работает"), readConfig: _ => ProfileEditorChecks.Fixture);
             try
             {
                 manager.RefreshState();
                 Require(((Button)manager.FindName("StartButton")).IsEnabled && !((Button)manager.FindName("StopButton")).IsEnabled, "Stopped AWG must expose Connect and disable Disconnect.");
+                var profileRows = ((ListBox)manager.FindName("ProfileList")).ItemsSource;
+                manager.RefreshState();
+                Require(ReferenceEquals(profileRows, ((ListBox)manager.FindName("ProfileList")).ItemsSource), "An unchanged manager poll must preserve profile rows and tooltip targets.");
                 state = 4; manager.RefreshState();
                 Require(Equals(manager.Foreground, System.Windows.Application.Current!.FindResource("TextBrush")), "AWG manager must share the client foreground palette.");
                 Require(!((Button)manager.FindName("StartButton")).IsEnabled && ((Button)manager.FindName("StopButton")).IsEnabled && !((Button)manager.FindName("SelectButton")).IsEnabled,
@@ -247,6 +250,13 @@ internal static class MonitoringChecks
                 Render(content, "awg-manager-min-" + theme);
             }
             finally { manager.Close(); }
+            var editor = new AwgProfileEditorWindow("Office VPN", ProfileEditorChecks.Fixture, true);
+            var editorRoot = (DockPanel)editor.Content;
+            Require(((StackPanel)editorRoot.Children[0]).Children[^1] is Button { IsCancel: true }, "Editor Cancel must remain rightmost.");
+            editor.Content = null;
+            var editorSurface = new Border { Child = editorRoot, Background = (Brush)editor.FindResource("AppBackgroundBrush") };
+            editorSurface.Measure(new Size(730, 620)); editorSurface.Arrange(new Rect(0, 0, 730, 620));
+            Render(editorSurface, "profile-editor-" + theme); editor.Close();
             var connectionSettings = new AwgConnectionSettingsWindow("Office VPN", new AwgConnectionOptions());
             var optionsRoot = (DockPanel)connectionSettings.Content;
             var footer = (StackPanel)optionsRoot.Children[0];
@@ -301,7 +311,7 @@ internal static class MonitoringChecks
     {
         element.UpdateLayout(); var image = new RenderTargetBitmap((int)element.ActualWidth, (int)element.ActualHeight, 96, 96, PixelFormats.Pbgra32); image.Render(element);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.73"); Directory.CreateDirectory(directory);
+        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.74"); Directory.CreateDirectory(directory);
         using var output = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(output);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

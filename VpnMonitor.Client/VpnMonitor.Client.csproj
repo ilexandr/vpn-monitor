@@ -8,7 +8,9 @@
     <Nullable>enable</Nullable>
     <AssemblyName>VpnMonitor.Client</AssemblyName>
     <RootNamespace>VpnMonitor.Client</RootNamespace>
-    <Version>0.1.73</Version>
+    <Version>0.1.74</Version>
+    <Product>AWG Dash Monitor</Product>
+    <Title>AWG Dash Monitor</Title>
     <ApplicationIcon>Assets\AWG_Monitor.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

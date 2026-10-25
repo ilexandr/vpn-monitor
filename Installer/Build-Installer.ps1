@@ -84,6 +84,22 @@ if($forbidden){throw 'Forbidden personal data in installer staging'}
 $info=@{Version=$version;SourceCommit=(git -C $root rev-parse HEAD);EngineCommit='e90531d15802cb976773f3b63443bc281f738ca3';Native=@{}}
 foreach($name in @('tunnel.dll','wintun.dll')){$info.Native[$name]=(Get-FileHash (Join-Path $stage "AwgPrototype\$name")).Hash}
 $info | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $stage 'Licenses\build-info.json')
+# File-level update inventory. The current updater still installs the verified full package.
+$files=@()
+foreach($component in @(@('App','Client'),@('Licenses','Licenses'))){
+ $source=Join-Path $stage $component[0]
+ foreach($file in Get-ChildItem -LiteralPath $source -Recurse -File | Where-Object Name -ne 'file-manifest.json'){
+  $relative=$file.FullName.Substring($source.Length+1).Replace('\','/')
+  $files += [ordered]@{Path=$component[1]+'/'+$relative;Size=$file.Length;Sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant()}
+ }
+}
+foreach($name in @('Setup-Components.ps1','Update-Application.ps1','Resume-AfterUpdate.ps1','Service-Recovery.ps1')){
+ $file=Get-Item -LiteralPath (Join-Path $PSScriptRoot $name)
+ $files += [ordered]@{Path='Setup/'+$name;Size=$file.Length;Sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant()}
+}
+$manifest=[ordered]@{Schema=1;Version=$version;SourceCommit=$info.SourceCommit;Files=@($files | Sort-Object { $_.Path })} | ConvertTo-Json -Depth 5
+[IO.File]::WriteAllText((Join-Path $licenses 'file-manifest.json'),$manifest,(New-Object Text.UTF8Encoding($false)))
+[IO.File]::WriteAllText((Join-Path $release 'file-manifest.json'),$manifest,(New-Object Text.UTF8Encoding($false)))
 & $Compiler "/DAppVersion=$version" "/DStageDir=$stage" "/DReleaseDir=$release" "/DLegacyCleanup=$legacyCleanup" (Join-Path $PSScriptRoot 'VpnMonitor.iss')
 if($LASTEXITCODE -ne 0){throw 'Installer compilation failed'}
 $exe=Join-Path $release "VpnMonitor-Setup-$version-win-x64.exe"

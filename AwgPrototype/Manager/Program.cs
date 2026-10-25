@@ -24,13 +24,13 @@ internal static class Program
         {
             if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
             {
-                System.Windows.Forms.MessageBox.Show("Запустите панель через «Запуск от имени администратора». Обычный VPN Monitor не требует повышения прав.","VPN Monitor AWG");
+                System.Windows.Forms.MessageBox.Show("Запустите панель через «Запуск от имени администратора». Обычный AWG Dash Monitor не требует повышения прав.","AWG Dash Monitor");
                 return 10;
             }
             var app = new VpnMonitor.Client.App(false);
             app.InitializeComponent();
             ThemeService.Apply(args.Length == 2 ? args[1] : new SettingsService().Load().Theme);
-            var window = new VpnMonitor.Client.AwgManagementWindow((action, argument) => Task.Run(() => Execute(action, argument)), readOptions: ReadOptions);
+            var window = new VpnMonitor.Client.AwgManagementWindow((action, argument) => Task.Run(() => Execute(action, argument)), readOptions: ReadOptions, readConfig: ReadConfig, saveConfig: (id, original, config) => Task.Run(() => SaveConfig(id, original, config)));
             using var updater = new UpdateParticipant("Manager", () => window.Dispatcher.BeginInvoke(new Action(() => window.Close())));
             app.Run(window);
             return 0;
@@ -117,6 +117,12 @@ internal static class Program
         }
         catch(IOException) { return 15; }
         catch { return 16; }
+    }
+    private static string ReadConfig(string id) => MachineProfile.Read(ProfilePath(id));
+    private static int SaveConfig(string id, string original, string config)
+    {
+        if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator)) return 10;
+        return ProfileEditorStore.Save(Data, CatalogFile, id, original, config, () => AwgServiceStatus.Read().State, ValidateConfig);
     }
     private static AwgProfileInfo Find(AwgProfileCatalog catalog,string id) =>
         catalog.Profiles.Single(p => p.Id == id && Guid.TryParseExact(p.Id,"N",out _));

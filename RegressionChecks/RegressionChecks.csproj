@@ -7,6 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../AwgPrototype/Manager/ProfileEditorStore.cs" Link="ProfileEditorStore.cs" />
+    <Compile Include="../AwgPrototype/Manager/ProfileProtector.cs" Link="ProfileProtector.cs" />
+    <Compile Include="../AwgPrototype/Host/MachineProfile.cs" Link="MachineProfile.cs" />
     <ProjectReference Include="../VpnMonitor.Client/VpnMonitor.Client.csproj" />
   </ItemGroup>
 </Project>

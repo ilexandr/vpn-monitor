@@ -55,7 +55,7 @@ try{
  Protect-UpdateDirectory $stage
  $statePath=Join-Path $env:ProgramData ('VpnMonitor\AwgStatus\update-'+(Split-Path $stage -Leaf)+'.json')
  $state=@{Id=(Split-Path $stage -Leaf);Phase='';Message='';WorkerPid=$PID;InstallerPid=0;ServiceWasRunning=[bool]$serviceWasRunning}
- $form=[Windows.Forms.Form]::new();$form.Text='Обновление VPN Monitor';$form.Width=540;$form.Height=160;$form.StartPosition='CenterScreen';$form.ControlBox=$false
+ $form=[Windows.Forms.Form]::new();$form.Text='Обновление AWG Dash Monitor';$form.Width=540;$form.Height=160;$form.StartPosition='CenterScreen';$form.ControlBox=$false
  $label=[Windows.Forms.Label]::new();$label.Dock='Fill';$label.Padding=[Windows.Forms.Padding]::new(20);$label.Font=[Drawing.Font]::new('Segoe UI',11);$form.Controls.Add($label);$form.Show()
  Write-State 'Downloading' 'Загрузка и проверка обновления. Приложения и туннель пока работают…'
  [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
@@ -141,5 +141,5 @@ try{
  if($form){$form.Close();$form.Dispose()}
  if($locked){$gate.ReleaseMutex()};if($gate){$gate.Dispose()}
 }
-if($failure){[Windows.Forms.MessageBox]::Show(('Обновление не завершено: '+$failure+[Environment]::NewLine+'Журнал: '+$stage),'VPN Monitor',[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Error) | Out-Null;exit 1}
+if($failure){[Windows.Forms.MessageBox]::Show(('Обновление не завершено: '+$failure+[Environment]::NewLine+'Журнал: '+$stage),'AWG Dash Monitor',[Windows.Forms.MessageBoxButtons]::OK,[Windows.Forms.MessageBoxIcon]::Error) | Out-Null;exit 1}
 exit 0

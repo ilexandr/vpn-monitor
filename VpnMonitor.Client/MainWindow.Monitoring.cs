@@ -199,10 +199,10 @@ public partial class MainWindow
         {
             var message = string.Join("\n", ready.Take(5).Select(i => i.Title + " — " + i.Message));
             if (ready.Count > 5) message += $"\nЕщё событий: {ready.Count - 5}";
-            _trayIcon.ShowBalloonTip(6000, $"VPN Monitor — {ready.Count} событий", message[..Math.Min(900, message.Length)], System.Windows.Forms.ToolTipIcon.Info);
+            _trayIcon.ShowBalloonTip(6000, $"AWG Dash Monitor — {ready.Count} событий", message[..Math.Min(900, message.Length)], System.Windows.Forms.ToolTipIcon.Info);
         }
         else foreach (var item in ready)
-            _trayIcon.ShowBalloonTip(4500, "VPN Monitor — " + (item.Online ? "Online" : "Offline"),
+            _trayIcon.ShowBalloonTip(4500, "AWG Dash Monitor — " + (item.Online ? "Online" : "Offline"),
                 (item.Title + "\n" + item.Message)[..Math.Min(900, item.Title.Length + item.Message.Length + 1)], System.Windows.Forms.ToolTipIcon.Info);
         }
         catch (Exception ex)

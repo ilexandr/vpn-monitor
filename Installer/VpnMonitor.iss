@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.73"
+ #define AppVersion "0.1.74"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -12,7 +12,7 @@
 #endif
 [Setup]
 AppId={{3A7D1DC4-7D80-4B3B-B17D-0A69BFD956CC}
-AppName=VPN Monitor
+AppName=AWG Dash Monitor
 AppVersion={#AppVersion}
 VersionInfoVersion={#AppVersion}
 VersionInfoProductVersion={#AppVersion}
@@ -21,7 +21,7 @@ AppPublisherURL=https://github.com/ilexandr/vpn-monitor
 DefaultDirName={autopf}\VpnMonitor
 DisableDirPage=no
 UsePreviousAppDir=yes
-DefaultGroupName=VPN Monitor
+DefaultGroupName=AWG Dash Monitor
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -51,17 +51,21 @@ Source: "Service-Recovery.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 
 [InstallDelete]
 #include LegacyCleanup
+Type: files; Name: "{commonprograms}\VPN Monitor\VPN Monitor.lnk"
+Type: files; Name: "{commonprograms}\VPN Monitor\Управление общими туннелями AWG.lnk"
+Type: files; Name: "{commonprograms}\VPN Monitor\Удалить VPN Monitor.lnk"
+Type: dirifempty; Name: "{commonprograms}\VPN Monitor"
 
 [Registry]
 Root: HKLM; Subkey: "Software\VpnMonitor"; Flags: uninsdeletekey
 
 [Run]
-Filename: "{app}\Client\VpnMonitor.Client.exe"; Description: "Запустить VPN Monitor"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\Client\VpnMonitor.Client.exe"; Description: "Запустить AWG Dash Monitor"; Flags: nowait postinstall skipifsilent runasoriginaluser
 
 [Icons]
-Name: "{commonprograms}\VPN Monitor\VPN Monitor"; Filename: "{app}\Client\VpnMonitor.Client.exe"
-Name: "{commonprograms}\VPN Monitor\Управление общими туннелями AWG"; Filename: "{app}\Client\AwgPrototype.Manager.exe"
-Name: "{commonprograms}\VPN Monitor\Удалить VPN Monitor"; Filename: "{uninstallexe}"
+Name: "{commonprograms}\AWG Dash Monitor\AWG Dash Monitor"; Filename: "{app}\Client\VpnMonitor.Client.exe"
+Name: "{commonprograms}\AWG Dash Monitor\Управление общими туннелями AWG"; Filename: "{app}\Client\AwgPrototype.Manager.exe"
+Name: "{commonprograms}\AWG Dash Monitor\Удалить AWG Dash Monitor"; Filename: "{uninstallexe}"
 
 [Code]
 var ComponentError: String;
@@ -82,7 +86,7 @@ begin
     if LoadStringFromFile(DiagnosticPath, DiagnosticBytes) then
       ComponentError := UTF8Decode(DiagnosticBytes);
     if ComponentError = '' then ComponentError := 'PowerShell: exit code ' + IntToStr(Code);
-    Log('VPN Monitor ' + Phase + ': ' + ComponentError);
+    Log('AWG Dash Monitor ' + Phase + ': ' + ComponentError);
   end;
 end;
 
@@ -118,7 +122,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    UninstallProgressForm.StatusLabel.Caption := 'Закрытие VPN Monitor и менеджера во всех сеансах, остановка общего туннеля…';
+    UninstallProgressForm.StatusLabel.Caption := 'Закрытие AWG Dash Monitor и менеджера во всех сеансах, остановка общего туннеля…';
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'PrepareRemove') then
     begin
       SuppressibleMsgBox('Не удалось подготовить удаление: ' + ComponentError, mbError, MB_OK, IDOK);
