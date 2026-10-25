@@ -470,8 +470,9 @@
                             <DataGridTemplateColumn x:Name="ReachabilityColumn" Header="Доступность" Width="125" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <TextBlock Text="{Binding Reachability.Text}" ToolTip="{Binding Reachability.ToolTip}"
+                                        <TextBlock Text="{Binding Reachability.Text}"
                                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <TextBlock.ToolTip><ToolTip Content="{Binding Reachability.ToolTip}"/></TextBlock.ToolTip>
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
@@ -511,7 +512,8 @@
 
                             <DataGridTemplateColumn x:Name="ServiceColumn" Header="Сервисы" Width="110" Visibility="Collapsed" CanUserSort="False">
                                 <DataGridTemplateColumn.CellTemplate><DataTemplate>
-                                    <TextBlock Text="{Binding Services.Text, TargetNullValue=Не проверялись}" ToolTip="{Binding Services.Details}" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Services.Text, TargetNullValue=Не проверялись}" VerticalAlignment="Center">
+                                        <TextBlock.ToolTip><ToolTip Content="{Binding Services.Details}"/></TextBlock.ToolTip>
                                         <TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
                                             <Style.Triggers><DataTrigger Binding="{Binding Services.Healthy}" Value="True"><Setter Property="Foreground" Value="{DynamicResource OnlineBrush}"/></DataTrigger>
                                             <DataTrigger Binding="{Binding Services.Healthy}" Value="False"><Setter Property="Foreground" Value="{DynamicResource ErrorTextBrush}"/></DataTrigger></Style.Triggers>

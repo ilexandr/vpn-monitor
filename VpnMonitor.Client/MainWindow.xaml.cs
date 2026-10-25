@@ -52,6 +52,9 @@ public partial class MainWindow : Window
     private readonly NetworkShareService _networkShareService = new();
     private readonly CancellationTokenSource _shareLifetimeCancellation = new();
     private System.Windows.Forms.NotifyIcon? _trayIcon;
+    private readonly DispatcherTimer _trayClickTimer = new();
+    private long _ignoreTrayClickUntil;
+    private System.Windows.Forms.ContextMenuStrip? _trayMenu;
     private System.Drawing.Icon? _trayOwnedIcon;
     private TrayNetworkPopup? _trayNetworkPopup;
     private readonly AutostartService _autostartService = new();
@@ -164,15 +167,36 @@ public partial class MainWindow : Window
                 Visible = true
             };
 
-            trayIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowFromTray);
+            _trayClickTimer.Interval = TimeSpan.FromMilliseconds(System.Windows.Forms.SystemInformation.DoubleClickTime);
+            _trayClickTimer.Tick -= TraySingleClick_Tick;
+            _trayClickTimer.Tick += TraySingleClick_Tick;
+            trayIcon.MouseDoubleClick += (_, e) =>
+            {
+                if (e.Button != System.Windows.Forms.MouseButtons.Left) return;
+                Dispatcher.Invoke(() =>
+                {
+                    _trayClickTimer.Stop();
+                    _ignoreTrayClickUntil = Environment.TickCount64 + System.Windows.Forms.SystemInformation.DoubleClickTime;
+                    _trayNetworkPopup?.Close();
+                    ShowFromTray();
+                });
+            };
             trayIcon.MouseClick += TrayIcon_MouseClick;
 
-            var trayMenu = new System.Windows.Forms.ContextMenuStrip();
+            var trayMenu = new System.Windows.Forms.ContextMenuStrip { ShowImageMargin = false,
+                Font = new System.Drawing.Font("Segoe UI", 10), Padding = new System.Windows.Forms.Padding(6) };
+            trayMenu.Opening += (_, _) =>
+            {
+                _trayClickTimer.Stop(); _trayNetworkPopup?.Close(); TrayMenuTheme.Apply(trayMenu);
+            };
             trayMenu.Items.Add("Открыть", null, (_, _) => Dispatcher.Invoke(ShowFromTray));
             trayMenu.Items.Add("Обновить", null, (_, _) => Dispatcher.InvokeAsync(RefreshDataAsync));
+            trayMenu.Items.Add("Сетевые интерфейсы", null, (_, _) => Dispatcher.Invoke(ToggleTrayNetworkPopup));
+            trayMenu.Items.Add("Настройки…", null, (_, _) => Dispatcher.Invoke(() => { ShowFromTray(); Settings_Click(this, new RoutedEventArgs()); }));
             trayMenu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
             trayMenu.Items.Add("Выход", null, (_, _) => Dispatcher.Invoke(CloseFromTray));
             trayIcon.ContextMenuStrip = trayMenu;
+            _trayMenu = trayMenu;
 
             _trayIcon = trayIcon;
             UpdateTrayTooltip();
@@ -200,10 +224,18 @@ public partial class MainWindow : Window
 
     private void TrayIcon_MouseClick(object? sender, System.Windows.Forms.MouseEventArgs e)
     {
-        if (e.Button != System.Windows.Forms.MouseButtons.Left)
-            return;
+        if (e.Button != System.Windows.Forms.MouseButtons.Left) return;
+        Dispatcher.Invoke(() =>
+        {
+            if (Environment.TickCount64 < _ignoreTrayClickUntil) return;
+            _trayClickTimer.Stop(); _trayClickTimer.Start();
+        });
+    }
 
-        Dispatcher.Invoke(ToggleTrayNetworkPopup);
+    private void TraySingleClick_Tick(object? sender, EventArgs e)
+    {
+        _trayClickTimer.Stop();
+        if (!_allowExit) ToggleTrayNetworkPopup();
     }
 
     private void ToggleTrayNetworkPopup()
@@ -343,7 +375,7 @@ public partial class MainWindow : Window
 
             if (!OpenSettings())
             {
-                WpfMessageBox.Show(this, "Без настроек подключения приложение не сможет получить список клиентов.",
+                ThemedMessageBox.Show(this, "Без настроек подключения приложение не сможет получить список клиентов.",
                     "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
                 return false;
             }
@@ -504,7 +536,7 @@ public partial class MainWindow : Window
 
             if (_viewModel.HasError)
                 foreach (var peer in _viewModel.Peers) _peerHistory.Observe(peer.Id, "AWG", "Неизвестно");
-            // Peers are replaced on refresh, so restore the selected logical peer by PublicKey.
+            // Preserve selection when filtering, sorting or membership changes during refresh.
             if (!string.IsNullOrWhiteSpace(selectedPeerId))
             {
                 var restored = _viewModel.PeersView
@@ -1105,7 +1137,7 @@ public partial class MainWindow : Window
         if (IPAddress.TryParse(ip, out _))
             return true;
 
-        WpfMessageBox.Show(this,
+        ThemedMessageBox.Show(this,
             "У клиента нет корректного VPN IP.",
             "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
         return false;
@@ -1182,7 +1214,7 @@ public partial class MainWindow : Window
             var executable = SshService.ResolveExecutable();
             if (executable is null)
             {
-                WpfMessageBox.Show(this, "В Windows не найден ssh.exe. Добавьте компонент «Клиент OpenSSH» в дополнительных компонентах Windows.",
+                ThemedMessageBox.Show(this, "В Windows не найден ssh.exe. Добавьте компонент «Клиент OpenSSH» в дополнительных компонентах Windows.",
                     "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
@@ -1279,7 +1311,7 @@ public partial class MainWindow : Window
                 ShowStatusHint("Сетевую папку открыть не удалось.");
                 var message = ex is System.ComponentModel.Win32Exception native
                     ? NetworkShareService.DescribeError(native.NativeErrorCode) : ex.Message;
-                WpfMessageBox.Show(owner ?? this, $"Не удалось открыть {path ?? ip}.\n\n{message}",
+                ThemedMessageBox.Show(owner ?? this, $"Не удалось открыть {path ?? ip}.\n\n{message}",
                     "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
@@ -1308,7 +1340,7 @@ public partial class MainWindow : Window
         var executable = _radminService.ResolveExecutable(_settings.RadminViewerPath);
         if (string.IsNullOrWhiteSpace(executable))
         {
-            var answer = WpfMessageBox.Show(this,
+            var answer = ThemedMessageBox.Show(this,
                 "Radmin Viewer не найден. Укажите путь к Radmin.exe в настройках.\n\nОткрыть настройки сейчас?",
                 "VPN Monitor", MessageBoxButton.YesNo, MessageBoxImage.Information);
 
@@ -1374,7 +1406,7 @@ public partial class MainWindow : Window
     private void ShowActionError(string message, Exception ex)
     {
         App.Log(message, ex);
-        WpfMessageBox.Show(this, $"{message}\n\n{ex.Message}",
+        ThemedMessageBox.Show(this, $"{message}\n\n{ex.Message}",
             "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
@@ -1638,6 +1670,8 @@ public partial class MainWindow : Window
         }
 
         _allowExit = true;
+        _trayClickTimer.Stop();
+        _trayMenu?.Dispose(); _trayMenu = null;
         SaveWindowState();
         _historySaveTimer.Stop();
         SaveHistoryOnExit();

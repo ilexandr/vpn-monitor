@@ -112,7 +112,7 @@ public partial class CustomActionsWindow : Window
         }
         catch (ArgumentException ex)
         {
-            System.Windows.MessageBox.Show(this, ex.Message, "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+            ThemedMessageBox.Show(this, ex.Message, "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 }

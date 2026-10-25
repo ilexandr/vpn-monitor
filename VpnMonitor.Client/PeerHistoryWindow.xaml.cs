@@ -31,7 +31,7 @@ public partial class PeerHistoryWindow : Window
     private void Search_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e) => _view?.Refresh();
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        if (System.Windows.MessageBox.Show(this, "Удалить историю этого клиента? Следующая проверка запишет новое исходное состояние.",
+        if (ThemedMessageBox.Show(this, "Удалить историю этого клиента? Следующая проверка запишет новое исходное состояние.",
             "История клиента", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes)
         {
             _history.ClearPeer(_peerId);
@@ -54,7 +54,7 @@ public partial class PeerHistoryWindow : Window
         }
         catch (Exception ex)
         {
-            System.Windows.MessageBox.Show(this, $"Не удалось сохранить историю: {ex.Message}", "История клиента", MessageBoxButton.OK, MessageBoxImage.Error);
+            ThemedMessageBox.Show(this, $"Не удалось сохранить историю: {ex.Message}", "История клиента", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         finally { ExportButton.IsEnabled = true; }
     }

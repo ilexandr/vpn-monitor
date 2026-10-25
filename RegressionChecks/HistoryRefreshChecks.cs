@@ -79,6 +79,17 @@ internal static class HistoryRefreshChecks
             Require(history.Entries.Any(e => e.Previous == "ADMIN_ARCHIVE"), "First authorized refresh must restore the existing archive.");
             var incidents = Field<IncidentTracker>(window, "_incidents");
             Require(incidents.Entries.Any(e => e.Title == "ADMIN_INCIDENT"), "Authorized main-window refresh must restore incident archives.");
+            var model = Field<VpnMonitor.Client.ViewModels.MainViewModel>(window, "_viewModel");
+            var row = model.Peers.Single(); var resets = 0;
+            model.PeersView.CollectionChanged += (_, e) => { if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset) resets++; };
+            await Refresh(window).WaitAsync(TimeSpan.FromSeconds(5));
+            Require(ReferenceEquals(row, model.Peers.Single()) && resets == 0,
+                "Ordinary polling must preserve client rows and avoid view resets that dismiss hover tooltips.");
+            var updated = new Peer { Id = row.Id, Name = "Renamed", Status = "stopped", Receive = 12, Groups = ["new"] };
+            var changed = new HashSet<string?>(); row.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+            row.UpdateFrom(updated);
+            Require(!row.IsOnline && row.Receive == 12 && changed.Contains(nameof(Peer.StatusText)) && changed.Contains(nameof(Peer.TrafficText)) && changed.Contains(nameof(Peer.GroupsText)),
+                "Preserved rows must notify status, traffic and group bindings when API values change.");
             var diagnostics = await Capture(window);
             Require(diagnostics.Report.Contains("Администратор API") && !diagnostics.Report.Contains("Последний успешный ответ API: —"),
                 "Main-window diagnostics must report the last authenticated API success.");

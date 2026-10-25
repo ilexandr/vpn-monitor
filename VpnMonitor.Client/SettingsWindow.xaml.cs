@@ -232,21 +232,21 @@ public partial class SettingsWindow : Window
         if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            MessageBox.Show(this, "Введите корректный адрес вида http://10.20.0.1 или https://vpn.example.com.",
+            ThemedMessageBox.Show(this, "Введите корректный адрес вида http://10.20.0.1 или https://vpn.example.com.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrEmpty(password))
         {
-            MessageBox.Show(this, "Логин и пароль не должны быть пустыми.",
+            ThemedMessageBox.Show(this, "Логин и пароль не должны быть пустыми.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
 
         if (!int.TryParse(RefreshSecondsBox.Text, out refreshSeconds) || refreshSeconds is < 2 or > 300)
         {
-            MessageBox.Show(this, "Интервал обновления должен быть от 2 до 300 секунд.",
+            ThemedMessageBox.Show(this, "Интервал обновления должен быть от 2 до 300 секунд.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
@@ -260,7 +260,7 @@ public partial class SettingsWindow : Window
 
         if (!anyColumn)
         {
-            MessageBox.Show(this, "Оставьте включенной хотя бы одну колонку таблицы.",
+            ThemedMessageBox.Show(this, "Оставьте включенной хотя бы одну колонку таблицы.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
@@ -321,8 +321,8 @@ public partial class SettingsWindow : Window
             var preview = AwgConfigPreview.Parse(await File.ReadAllTextAsync(dialog.FileName));
             OwnedWindowBehavior.Attach(new AwgPreviewWindow(preview), this).ShowDialog();
         }
-        catch (ArgumentException ex) { MessageBox.Show(this, ex.Message, "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
-        catch { MessageBox.Show(this, "Не удалось прочитать профиль AWG.", "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (ArgumentException ex) { ThemedMessageBox.Show(this, ex.Message, "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch { ThemedMessageBox.Show(this, "Не удалось прочитать профиль AWG.", "Профиль AWG", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)
@@ -334,7 +334,7 @@ public partial class SettingsWindow : Window
             File.WriteAllText(dialog.FileName, SettingsTransfer.Export(_settings));
             TestStatus.Text = "Экспортированы сохранённые настройки без пароля. Изменения формы сначала сохраните.";
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Экспорт настроек", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex) { ThemedMessageBox.Show(this, ex.Message, "Экспорт настроек", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 
     private void Import_Click(object sender, RoutedEventArgs e)
@@ -346,7 +346,7 @@ public partial class SettingsWindow : Window
             if (new FileInfo(dialog.FileName).Length > 2_000_000) throw new ArgumentException("Файл настроек слишком большой.");
             var imported = SettingsTransfer.Import(File.ReadAllText(dialog.FileName));
             var message = $"Сервер: {imported.ServerUrl}\nПользователь: {imported.Username}\nТема: {imported.Theme}\nДействий: {imported.CustomActions.Count}\n\nНастройки заменят значения формы. Пароль не импортируется. Команды не запускаются.\nИзменения применятся после «Сохранить»; «Отмена» отменит импорт.";
-            if (MessageBox.Show(this, message, "Предпросмотр импорта", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
+            if (ThemedMessageBox.Show(this, message, "Предпросмотр импорта", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
             var sameAccount = string.Equals(imported.ServerUrl.TrimEnd('/'), _settings.ServerUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                 imported.Username == _settings.Username;
             imported.ProtectedPassword = sameAccount ? _settings.ProtectedPassword : "";
@@ -358,7 +358,7 @@ public partial class SettingsWindow : Window
             SectionScroll.ScrollToTop();
             TestStatus.Text = "Импорт подготовлен. Проверьте значения и пароль, затем нажмите «Сохранить».";
         }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Импорт настроек", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex) { ThemedMessageBox.Show(this, ex.Message, "Импорт настроек", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private void CustomActions_Click(object sender, RoutedEventArgs e)
     {
@@ -378,7 +378,7 @@ public partial class SettingsWindow : Window
 
         if (!int.TryParse(RadminPortBox.Text, out var radminPort) || radminPort is < 1 or > 65535)
         {
-            MessageBox.Show(this, "Порт Radmin Server должен быть от 1 до 65535.",
+            ThemedMessageBox.Show(this, "Порт Radmin Server должен быть от 1 до 65535.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -386,7 +386,7 @@ public partial class SettingsWindow : Window
         var radminUsername = RadminUsernameBox.Text.Trim();
         if (RadminAutofillUsernameCheckBox.IsChecked == true && string.IsNullOrWhiteSpace(radminUsername))
         {
-            MessageBox.Show(this, "Укажите логин Radmin или отключите автоматическую подстановку логина.",
+            ThemedMessageBox.Show(this, "Укажите логин Radmin или отключите автоматическую подстановку логина.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -394,13 +394,13 @@ public partial class SettingsWindow : Window
         if (!int.TryParse(ActiveCheckSecondsBox.Text, out var activeSeconds) || activeSeconds is < 2 or > 300 ||
             !int.TryParse(ActiveCheckTcpPortBox.Text, out var activePort) || activePort is < 1 or > 65535)
         {
-            MessageBox.Show(this, "Укажите интервал проверки от 2 до 300 секунд и TCP-порт от 1 до 65535.",
+            ThemedMessageBox.Show(this, "Укажите интервал проверки от 2 до 300 секунд и TCP-порт от 1 до 65535.",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         if (StatusNotificationsEnabledCheckBox.IsChecked == true && NotificationSourceBox.SelectedIndex == 0 && ActiveChecksEnabledBox.IsChecked != true)
         {
-            MessageBox.Show(this, "Для активных уведомлений включите проверки доступности или выберите источник «Статус AWG».",
+            ThemedMessageBox.Show(this, "Для активных уведомлений включите проверки доступности или выберите источник «Статус AWG».",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
@@ -416,7 +416,7 @@ public partial class SettingsWindow : Window
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, $"Импорт не применён: {ex.Message}", "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
+                ThemedMessageBox.Show(this, $"Импорт не применён: {ex.Message}", "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
         }
@@ -460,7 +460,7 @@ public partial class SettingsWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this,
+            ThemedMessageBox.Show(this,
                 $"Не удалось сохранить настройки.\n\n{ex.Message}",
                 "VPN Monitor", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;

@@ -244,7 +244,7 @@ public partial class MonitoringWindow : Window
     }
     private void ClearIncidents_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(this, "Очистить завершённые инциденты текущего аккаунта? Открытые останутся.", "Мониторинг", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+        if (ThemedMessageBox.Show(this, "Очистить завершённые инциденты текущего аккаунта? Открытые останутся.", "Мониторинг", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
         _context.ClearCompleted(); RefreshState();
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();

@@ -45,7 +45,7 @@ public partial class AwgStatusWindow : Window
             var path = AwgProfileCatalogReader.ManagerPath;
             if (!System.IO.File.Exists(path))
             {
-                System.Windows.MessageBox.Show(this, "Панель управления AWG не установлена. Установите компоненты от администратора.",
+                ThemedMessageBox.Show(this, "Панель управления AWG не установлена. Установите компоненты от администратора.",
                     "AWG", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }

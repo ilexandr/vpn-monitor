@@ -72,7 +72,8 @@ public partial class AwgManagementWindow : Window
             "start" => "Подключить общий VPN для всех пользователей?",
             _ => "Отключить VPN у всех пользователей компьютера?"
         };
-        if (System.Windows.MessageBox.Show(this, message, "Общий туннель", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+        if (ThemedMessageBox.Show(this, message, "Общий туннель", MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel,
+            action switch { "start" => "Подключить", "stop" => "Отключить", "remove" => "Удалить", "select" => "Выбрать", _ => "Добавить" }) != MessageBoxResult.OK) return;
         await ExecuteCommandAsync(action, argument);
     }
     private async Task ExecuteCommandAsync(string action, string argument)

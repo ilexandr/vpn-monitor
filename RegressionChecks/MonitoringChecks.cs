@@ -131,6 +131,20 @@ internal static class MonitoringChecks
         Require(service.Get(peers[0], settings)?.Healthy == false, "A service outage must be confirmed by three failures.");
         available = true; now = now.AddSeconds(5); await service.ScanAsync(peers, settings, new("http://127.0.0.1"), default);
         Require(service.Get(peers[0], settings)?.Healthy == true, "Service recovery must be visible independently of computer availability.");
+        peers[0].Status = "stopped";
+        var beforeOffline = calls; now = now.AddSeconds(5);
+        await service.ScanAsync([peers[0]], settings, new("http://127.0.0.1"), default);
+        Require(calls == beforeOffline && service.Get(peers[0], settings) is { ClientOffline: true, Healthy: null },
+            "Offline hosts must pause service probes and cannot report a service failure.");
+        peers[0].Status = "running"; available = false;
+        await service.ScanAsync([peers[0]], settings, new("http://127.0.0.1"), default);
+        Require(service.Get(peers[0], settings)?.Ports[0].Failures == 1 && service.Get(peers[0], settings)?.Healthy is null,
+            "A recovered host must restart service failure confirmation rather than inherit an old outage.");
+        peers[0].Reachability = new(true, 1, 0, "ping", DateTime.Now); peers[0].Status = "stopped";
+        Require(ServiceMonitor.CanCheck(peers[0]), "Active reachability must take priority over stale AWG Offline.");
+        peers[0].Reachability = new(false, null, 3, "ping", DateTime.Now);
+        Require(!ServiceMonitor.CanCheck(peers[0]), "Confirmed active unreachability must pause service checks.");
+        peers[0].Reachability = ReachabilityResult.Unknown(); peers[0].Status = "running"; available = true;
         peers[0].VpnIp = "127.0.0.2"; Require(service.Get(peers[0], settings) is null, "Changing a target address must invalidate prior service results.");
         var references = 0;
         var interrupted = new ServiceMonitor((_, _, _) => Task.FromResult(false), (_, _) => Task.FromResult(++references == 1), () => now);
@@ -217,6 +231,19 @@ internal static class MonitoringChecks
                 Render(content, "awg-manager-min-" + theme);
             }
             finally { manager.Close(); }
+            var confirmation = new ThemedMessageBox("Отключить VPN у всех пользователей компьютера?", "Общий туннель",
+                MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel, "Отключить");
+            var dialogContent = (FrameworkElement)confirmation.Content;
+            dialogContent.Measure(new Size(452, 300)); dialogContent.Arrange(new Rect(0, 0, 452, dialogContent.DesiredSize.Height));
+            Render(dialogContent, "confirmation-" + theme);
+            Require(confirmation.Result == MessageBoxResult.Cancel, "Closing confirmation must default to cancel."); confirmation.Close();
+            using (var menu = new System.Windows.Forms.ContextMenuStrip())
+            {
+                menu.Items.Add("Открыть"); TrayMenuTheme.Apply(menu);
+                var expected = ((SolidColorBrush)System.Windows.Application.Current.FindResource("PanelBrush")).Color;
+                Require(menu.BackColor.R == expected.R && menu.BackColor.G == expected.G && menu.BackColor.B == expected.B,
+                    "Tray menu must use the active application theme.");
+            }
             if (theme == ThemeService.Dark)
             {
                 var pending = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -225,6 +252,12 @@ internal static class MonitoringChecks
                 busyManager.Show();
                 var command = (Task)typeof(AwgManagementWindow).GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .Invoke(busyManager, ["start", "-"])!;
+                var list = (ListBox)busyManager.FindName("ProfileList"); list.UpdateLayout();
+                Require(!list.IsEnabled && ThemeService.CurrentTheme == ThemeService.Dark, "Busy AWG must remain in dark mode.");
+                var border = (Border)VisualTreeHelper.GetChild(list, 0);
+                Require(((SolidColorBrush)border.Background).Color == ((SolidColorBrush)busyManager.FindResource("PanelBrush")).Color,
+                    "The disabled profile list must retain its themed background.");
+                Render((FrameworkElement)busyManager.Content, "awg-manager-busy-dark");
                 busyManager.Close();
                 Require(busyManager.IsVisible, "A busy manager must finish its command before closing for update.");
                 pending.SetResult(0); await command;
@@ -236,7 +269,7 @@ internal static class MonitoringChecks
     {
         element.UpdateLayout(); var image = new RenderTargetBitmap((int)element.ActualWidth, (int)element.ActualHeight, 96, 96, PixelFormats.Pbgra32); image.Render(element);
         var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.71"); Directory.CreateDirectory(directory);
+        var directory = Path.Combine(Environment.CurrentDirectory, "artifacts", "regression", "ui-0.1.72"); Directory.CreateDirectory(directory);
         using var output = File.Create(Path.Combine(directory, name + ".png")); encoder.Save(output);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new Exception(message); }

@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.71"
+ #define AppVersion "0.1.72"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"

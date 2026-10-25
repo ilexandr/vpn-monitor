@@ -28,7 +28,24 @@ public sealed class Peer : INotifyPropertyChanged
     public ServiceSnapshot? Services
     {
         get => _services;
-        set { _services = value; PropertyChanged?.Invoke(this, new(nameof(Services))); }
+        set { if (_services == value) return; _services = value; PropertyChanged?.Invoke(this, new(nameof(Services))); }
+    }
+
+    // Preserve row identity (selection, hover and open tooltips) between API polls.
+    public void UpdateFrom(Peer source)
+    {
+        void Changed(params string[] names) { foreach (var name in names) PropertyChanged?.Invoke(this, new(name)); }
+        if (Name != source.Name) { Name = source.Name; Changed(nameof(Name)); }
+        if (VpnIp != source.VpnIp) { VpnIp = source.VpnIp; Changed(nameof(VpnIp), nameof(VpnIpSortKey)); }
+        if (AllowedIp != source.AllowedIp) { AllowedIp = source.AllowedIp; Changed(nameof(AllowedIp)); }
+        if (Endpoint != source.Endpoint) { Endpoint = source.Endpoint; Changed(nameof(Endpoint), nameof(EndpointHost)); }
+        if (Status != source.Status) { Status = source.Status; Changed(nameof(Status), nameof(IsOnline), nameof(StatusText)); }
+        if (LatestHandshake != source.LatestHandshake) { LatestHandshake = source.LatestHandshake; Changed(nameof(LatestHandshake), nameof(HandshakeText), nameof(HandshakeSortKey)); }
+        if (Receive != source.Receive || Sent != source.Sent)
+        { Receive = source.Receive; Sent = source.Sent; Changed(nameof(Receive), nameof(Sent), nameof(ReceiveText), nameof(SentText), nameof(TrafficText), nameof(TrafficTotal)); }
+        if (Notes != source.Notes) { Notes = source.Notes; Changed(nameof(Notes)); }
+        if (!Groups.SequenceEqual(source.Groups)) { Groups = source.Groups; Changed(nameof(Groups), nameof(GroupsText)); }
+        if (IsFavorite != source.IsFavorite) { IsFavorite = source.IsFavorite; Changed(nameof(IsFavorite)); }
     }
 
     [JsonPropertyName("id")]

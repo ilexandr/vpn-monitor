@@ -293,9 +293,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 peer.IsFavorite = _favoritePeerIds.Contains(peer.Id);
             }
 
-            Peers.Clear();
+            var incoming = newPeers.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+            foreach (var removed in Peers.Where(p => !incoming.Contains(p.Id)).ToArray()) Peers.Remove(removed);
+            var existing = Peers.ToDictionary(p => p.Id, StringComparer.Ordinal);
             foreach (var peer in newPeers)
-                Peers.Add(peer);
+                if (existing.TryGetValue(peer.Id, out var current)) current.UpdateFrom(peer);
+                else Peers.Add(peer);
 
             FavoriteCount = newPeers.Count(p => p.IsFavorite);
 
@@ -344,7 +347,12 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             AwgState.IsCurrent = true;
             OnPropertyChanged(nameof(OnlineCountText));
 
-            PeersView.Refresh();
+            // A Reset recreates every row and dismisses tooltips. Only reset when the
+            // visible membership/order really changes; ordinary values update through INPC.
+            var comparer = new PeerComparer(_sortMember, _sortDescending);
+            var expected = Peers.Where(p => FilterPeer(p)).OrderBy(p => p,
+                Comparer<Peer>.Create((a, b) => comparer.Compare(a, b))).Select(p => p.Id);
+            if (!PeersView.Cast<Peer>().Select(p => p.Id).SequenceEqual(expected)) PeersView.Refresh();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

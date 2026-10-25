@@ -113,7 +113,18 @@ public partial class MainWindow
     private void ApplyServiceResults()
     {
         foreach (var peer in _viewModel.Peers)
+        {
             peer.Services = !_viewModel.HasError && _viewModel.AwgState.IsCurrent ? _serviceMonitor.Get(peer, _monitoringSettings) : null;
+            if (peer.Services?.ClientOffline == true)
+            {
+                foreach (var key in _notificationStates.Keys.Where(k => k.StartsWith("service:" + peer.Id + ":", StringComparison.Ordinal)).ToArray())
+                { _notificationStates.Remove(key); _servicePrevious.Remove(key); }
+                foreach (var incident in _incidents.Entries.Where(i => i.EndedAt is null && i.PeerId == peer.Id && i.Key.StartsWith("service:")).ToArray())
+                {
+                    _incidents.Observe(incident.Key, incident.Level, incident.Title, peer.Id, null, DateTimeOffset.Now);
+                }
+            }
+        }
     }
     private async Task RefreshServicesAsync()
     {
@@ -138,7 +149,7 @@ public partial class MainWindow
             var observedKeys = new HashSet<string>(StringComparer.Ordinal);
             var watched = (_settings.StatusNotificationPeerIds ?? []).ToHashSet(StringComparer.Ordinal);
             foreach (var peer in _viewModel.Peers)
-                if (peer.Services is { } services)
+                if (peer.Services is { ClientOffline: false } services)
                     foreach (var port in services.Ports)
                     {
                         var key = "service:" + peer.Id + ":" + port.Port;
