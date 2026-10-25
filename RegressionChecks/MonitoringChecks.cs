@@ -259,6 +259,9 @@ internal static class MonitoringChecks
                 MessageBoxButton.OKCancel, MessageBoxImage.Warning, MessageBoxResult.Cancel, "Отключить");
             var dialogRoot = (Grid)((Border)confirmation.Content).Child;
             Require(((StackPanel)dialogRoot.Children[2]).Children[^1] is Button { IsCancel: true }, "Confirmation Cancel must be rightmost and remain the safe default.");
+            confirmation.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+            Require(System.Windows.Input.FocusManager.GetFocusedElement(confirmation) is Button { IsCancel: true },
+                "Moving Cancel right must not move the initial keyboard focus to the destructive action.");
             var dialogContent = (FrameworkElement)confirmation.Content;
             dialogContent.Measure(new Size(452, 300)); dialogContent.Arrange(new Rect(0, 0, 452, dialogContent.DesiredSize.Height));
             Render(dialogContent, "confirmation-" + theme);

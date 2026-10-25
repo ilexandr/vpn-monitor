@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using VpnMonitor.Client.Services;
@@ -44,6 +44,15 @@ public sealed class ThemedMessageBox : Window
         Add(acceptText ?? (yesNo ? "Да" : buttons == MessageBoxButton.OK ? "Закрыть" : "Продолжить"), accept, true);
         if (buttons == MessageBoxButton.YesNoCancel) Add("Нет", MessageBoxResult.No);
         if (buttons != MessageBoxButton.OK) Add(buttons == MessageBoxButton.YesNo ? "Нет" : "Отмена", dismiss);
+        Loaded += (_, _) =>
+        {
+            var preferred = actions.Children.OfType<Button>().FirstOrDefault(button => button.IsDefault);
+            if (preferred is not null)
+            {
+                System.Windows.Input.FocusManager.SetFocusedElement(this, preferred);
+                preferred.Focus();
+            }
+        };
         var surface = new Border { Child = root, Padding = new Thickness(24) };
         surface.SetResourceReference(BackgroundProperty, "AppBackgroundBrush");
         Content = surface;
