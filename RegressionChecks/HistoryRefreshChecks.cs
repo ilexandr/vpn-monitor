@@ -90,6 +90,13 @@ internal static class HistoryRefreshChecks
             row.UpdateFrom(updated);
             Require(!row.IsOnline && row.Receive == 12 && changed.Contains(nameof(Peer.StatusText)) && changed.Contains(nameof(Peer.TrafficText)) && changed.Contains(nameof(Peer.GroupsText)),
                 "Preserved rows must notify status, traffic and group bindings when API values change.");
+            foreach (var name in new[] { "ServiceColumn", "ReachabilityColumn" })
+            {
+                var column = (System.Windows.Controls.DataGridTemplateColumn)window.FindName(name);
+                var cell = (System.Windows.Controls.TextBlock)column.CellTemplate.LoadContent();
+                Require(cell.ToolTip is System.Windows.Controls.ToolTip && System.Windows.Controls.ToolTipService.GetShowDuration(cell) >= 60000,
+                    "Live status cells need persistent tooltips and enough reading time across multiple polls.");
+            }
             var diagnostics = await Capture(window);
             Require(diagnostics.Report.Contains("Администратор API") && !diagnostics.Report.Contains("Последний успешный ответ API: —"),
                 "Main-window diagnostics must report the last authenticated API success.");
