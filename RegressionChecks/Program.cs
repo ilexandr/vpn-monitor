@@ -25,6 +25,8 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--live-admin-users")) { await AdminUsersChecks.RunLiveAsync(); exitCode=0; return; }
+                if (args.Contains("--admin-users-only")) { await AdminUsersChecks.RunAsync(); exitCode=0; return; }
                 if (args.Contains("--live-file-plan")) { await UpdateFilePlanChecks.RunLiveAsync(); exitCode=0; return; }
                 if (args.Contains("--live-access")) { await LiveAccessChecks.RunAsync(); exitCode = 0; return; }
                 if (args.Contains("--interface-only")) { await InterfaceChecks.RunAsync(); exitCode = 0; return; }
@@ -42,6 +44,7 @@ internal static class Program
                 await OwnedWindowChecks.RunAsync();
                 await InterfaceChecks.RunAsync();
                 await MonitoringChecks.RunAsync();
+                await AdminUsersChecks.RunAsync();
                 SettingsRecoveryChecks.Run();
                 await DiagnosticChecks.RunAsync();
                 await CheckTunnelProbeAsync();

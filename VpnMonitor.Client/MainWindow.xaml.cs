@@ -1114,12 +1114,24 @@ public partial class MainWindow : Window
         AddActionMenuItem(menu, "Журнал приложения", () => Log_Click(this, new RoutedEventArgs()));
         AddActionMenuItem(menu, "Диагностика", () => ShowDiagnostics());
         AddActionMenuItem(menu, "Мониторинг и правила", () => ShowMonitoring());
+        if (_viewModel.IsAdmin && _viewModel.AwgState.IsCurrent) AddActionMenuItem(menu, "Управление пользователями…", ShowUserManagement);
         menu.Items.Add(SavedViewsMenu());
         AddActionMenuItem(menu, "Экспорт списка в CSV", () => ExportPeers_Click(this, new RoutedEventArgs()));
         menu.Items.Add(CreateMenuSeparator());
         AddActionMenuItem(menu, "Открыть Web", () => OpenVpnMonitorWeb_Click(this, new RoutedEventArgs()));
         AddActionMenuItem(menu, "О программе и обновления", () => About_Click(this, new RoutedEventArgs()));
         menu.IsOpen = true;
+    }
+
+    private void ShowUserManagement()
+    {
+        if(!_viewModel.IsAdmin || !_viewModel.AwgState.IsCurrent)return;
+        var server=_settings.ServerUrl;var username=_settings.Username;var credential=_settings.ProtectedPassword;
+        try {
+            using var api=new AdminUsersClient(server,username,_settingsService.UnprotectPassword(credential));
+            var window=OwnedWindowBehavior.Attach(new UserManagementWindow(api,()=>_viewModel.IsAdmin && _settings.ServerUrl==server && _settings.Username==username && _settings.ProtectedPassword==credential),this);
+            window.ShowDialog();
+        } catch {ShowStatusHint("Не удалось открыть управление пользователями. Проверьте подключение и учётную запись.");}
     }
 
     private void AddActionMenuItem(ContextMenu menu, string title, Action action, bool enabled = true)
