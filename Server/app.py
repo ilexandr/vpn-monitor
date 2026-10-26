@@ -5,6 +5,7 @@ import base64
 import os
 import re
 import secrets
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -13,8 +14,9 @@ import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.concurrency import run_in_threadpool
 
-from auth_store import UserStore, normalize_identity
+from auth_store import UserStore, normalize_identity, DEFAULT_USERS_FILE, ProtectedAccountError
 
 BASE_DIR = Path(__file__).resolve().parent
 WG_URL = os.getenv("WG_URL", "http://127.0.0.1:10086").rstrip("/")
@@ -25,7 +27,7 @@ PORT = int(os.getenv("PORT", "80"))
 
 AUTH_USER = os.getenv("AUTH_USER", "")
 AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
-USERS_FILE = os.getenv("USERS_FILE", "/etc/vpn-monitor-users.json")
+USERS_FILE = os.getenv("USERS_FILE", DEFAULT_USERS_FILE)
 
 if not AUTH_USER or not AUTH_PASSWORD:
     raise RuntimeError(
@@ -107,6 +109,90 @@ def require_auth(request: Request) -> Principal:
         _unauthorized()
 
     return Principal(username=stored.username, is_admin=False)
+
+
+_ADMIN_CSRF = secrets.token_urlsafe(32)
+
+def require_admin(principal: Principal = Depends(require_auth)) -> Principal:
+    if not principal.is_admin:
+        raise HTTPException(status_code=403, detail="Требуются права администратора")
+    return principal
+
+@app.middleware("http")
+async def admin_no_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/v1/admin/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+async def admin_payload(request: Request) -> dict:
+    token = request.headers.get("X-VpnMonitor-CSRF", "")
+    if not secrets.compare_digest(token.encode(), _ADMIN_CSRF.encode()):
+        raise HTTPException(status_code=403, detail="Обновите список пользователей и повторите операцию")
+    if request.method == "DELETE":
+        return {}
+    if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+        raise HTTPException(status_code=415, detail="Ожидается JSON")
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > 8192:
+            raise HTTPException(status_code=413, detail="Запрос слишком большой")
+    try:
+        value = json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        raise HTTPException(status_code=422, detail="Некорректный JSON")
+    if not isinstance(value, dict) or set(value) - {"username", "password", "enabled"}:
+        raise HTTPException(status_code=422, detail="Некорректные поля запроса")
+    for field in ("username", "password"):
+        if field in value and not isinstance(value[field], str):
+            raise HTTPException(status_code=422, detail="Имя и пароль должны быть строками")
+    if "enabled" in value and type(value["enabled"]) is not bool:
+        raise HTTPException(status_code=422, detail="Некорректный статус пользователя")
+    return value
+
+@app.get("/api/v1/admin/users")
+def admin_users(principal: Principal = Depends(require_admin)):
+    names = {normalize_identity(str(g.get("name", ""))) for g in state["groups"]}
+    items = [{"username": AUTH_USER, "enabled": True, "is_admin": True, "group": None, "group_exists": True}]
+    items.extend({"username": u.username, "enabled": u.enabled, "is_admin": False, "group": u.username,
+                  "group_exists": normalize_identity(u.username) in names}
+                 for u in user_store.list_users() if normalize_identity(u.username) != normalize_identity(AUTH_USER))
+    return {"items": items, "groups": [g["name"] for g in state["groups"]], "csrf_token": _ADMIN_CSRF}
+
+async def manage_user(request: Request, username: str, *, create=False, delete=False, payload=None):
+    if payload is None:
+        payload = await admin_payload(request)
+    if not create and "username" in payload:
+        raise HTTPException(status_code=422, detail="Переименование пользователя не поддерживается")
+    try:
+        await run_in_threadpool(user_store.manage, username, admin=AUTH_USER, create=create, delete=delete,
+                                password=payload.get("password"), enabled=payload.get("enabled"))
+    except ProtectedAccountError:
+        raise HTTPException(status_code=403, detail="Аккаунт администратора защищён")
+    except FileExistsError:
+        raise HTTPException(status_code=409, detail="Пользователь уже существует")
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except OSError:
+        raise HTTPException(status_code=503, detail="Не удалось сохранить базу пользователей")
+    return {"ok": True}
+
+@app.post("/api/v1/admin/users", status_code=201)
+async def admin_create_user(request: Request, principal: Principal = Depends(require_admin)):
+    # Read once here for the new identity; reuse the bounded body in the common mutation path.
+    payload = await admin_payload(request)
+    return await manage_user(request, payload.get("username", ""), create=True, payload=payload)
+
+@app.patch("/api/v1/admin/users/{username:path}")
+async def admin_change_user(username: str, request: Request, principal: Principal = Depends(require_admin)):
+    return await manage_user(request, username)
+
+@app.delete("/api/v1/admin/users/{username:path}")
+async def admin_delete_user(username: str, request: Request, principal: Principal = Depends(require_admin)):
+    return await manage_user(request, username, delete=True)
 
 
 def recursive_find(obj: Any, key: str):

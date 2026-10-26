@@ -7,11 +7,14 @@ import json
 import os
 import tempfile
 import unicodedata
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-DEFAULT_USERS_FILE = "/etc/vpn-monitor-users.json"
+DEFAULT_USERS_FILE = "/var/lib/vpn-monitor/users/users.json"
+_STORE_LOCK = threading.RLock()
 SCRYPT_N = 2**14
 SCRYPT_R = 8
 SCRYPT_P = 1
@@ -80,17 +83,43 @@ class StoredUser:
     password: dict[str, Any]
 
 
+class ProtectedAccountError(PermissionError):
+    pass
+
+
 class UserStore:
     def __init__(self, path: str | os.PathLike[str] | None = None):
-        self.path = Path(path or os.getenv("USERS_FILE", DEFAULT_USERS_FILE))
+        self.path = Path(path or os.getenv("USERS_FILE", DEFAULT_USERS_FILE)).resolve()
         self._cached_mtime_ns: int | None = None
         self._cached_users: dict[str, StoredUser] = {}
 
+    @contextmanager
+    def _locked(self):
+        # Serialize CLI and web writers across processes, then atomically replace the document.
+        with _STORE_LOCK:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path.with_suffix(self.path.suffix + ".lock"), "a+b") as handle:
+                if hasattr(os, "geteuid") and os.geteuid() == 0:
+                    owner = self.path.stat() if self.path.exists() else self.path.parent.stat()
+                    os.fchown(handle.fileno(), owner.st_uid, owner.st_gid)
+                    os.fchmod(handle.fileno(), 0o660)
+                try:
+                    import fcntl
+                except ImportError:  # Windows is used only for isolated developer tests.
+                    fcntl = None
+                if fcntl:
+                    fcntl.flock(handle, fcntl.LOCK_EX)
+                try:
+                    yield
+                finally:
+                    if fcntl:
+                        fcntl.flock(handle, fcntl.LOCK_UN)
+
     def ensure_exists(self) -> None:
-        if self.path.exists():
-            return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._write_document({"version": 1, "users": []})
+        with self._locked():
+            if self.path.exists():
+                return
+            self._write_document({"version": 1, "users": []})
 
     def _load_document(self) -> dict[str, Any]:
         try:
@@ -117,6 +146,9 @@ class UserStore:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            if hasattr(os, "geteuid") and os.geteuid() == 0 and self.path.exists():
+                previous = self.path.stat()
+                os.chown(temp_name, previous.st_uid, previous.st_gid)
             os.chmod(temp_name, 0o640)
             os.replace(temp_name, self.path)
             os.chmod(self.path, 0o640)
@@ -164,64 +196,100 @@ class UserStore:
     def list_users(self) -> list[StoredUser]:
         return sorted(self._users().values(), key=lambda x: normalize_identity(x.username))
 
-    def upsert(self, username: str, password: str, *, enabled: bool = True) -> None:
+    def manage(self, username: str, *, admin: str, create: bool = False,
+               password: str | None = None, enabled: bool | None = None, delete: bool = False) -> None:
         username = unicodedata.normalize("NFKC", username.strip())
-        if not username:
-            raise ValueError("Имя пользователя не может быть пустым")
-        if ":" in username:
-            raise ValueError("Имя пользователя не может содержать ':'")
+        if not username or len(username) > 80 or ":" in username or any(unicodedata.category(c).startswith("C") for c in username):
+            raise ValueError("Имя: от 1 до 80 символов, без двоеточия и управляющих символов")
+        if normalize_identity(username) == normalize_identity(admin):
+            raise ProtectedAccountError("Администратор управляется конфигурацией сервера")
+        if password is not None and (not password or len(password) > 256):
+            raise ValueError("Пароль: от 1 до 256 символов")
+        with self._locked():
+            data = self._load_document()
+            users = data.get("users", [])
+            existing = next((u for u in users if normalize_identity(str(u.get("username", ""))) == normalize_identity(username)), None)
+            if create and existing is not None:
+                raise FileExistsError("Пользователь с таким именем уже существует")
+            if not create and existing is None:
+                raise LookupError("Пользователь не найден")
+            if create:
+                if password is None:
+                    raise ValueError("Задайте пароль")
+                existing = {"username": username, "enabled": True}
+                users.append(existing)
+            if delete:
+                users.remove(existing)
+            else:
+                if password is not None:
+                    existing["password"] = hash_password(password)
+                if enabled is not None:
+                    existing["enabled"] = enabled
+            data["version"] = 1
+            data["users"] = users
+            self._write_document(data)
 
-        data = self._load_document()
-        target = normalize_identity(username)
-        users = [x for x in data.get("users", []) if isinstance(x, dict)]
-        updated = False
-        new_password = hash_password(password)
-        for item in users:
-            if normalize_identity(str(item.get("username", ""))) == target:
-                item.clear()
-                item.update({
+    def upsert(self, username: str, password: str, *, enabled: bool = True) -> None:
+        with self._locked():
+            username = unicodedata.normalize("NFKC", username.strip())
+            if not username:
+                raise ValueError("Имя пользователя не может быть пустым")
+            if ":" in username:
+                raise ValueError("Имя пользователя не может содержать ':'")
+
+            data = self._load_document()
+            target = normalize_identity(username)
+            users = [x for x in data.get("users", []) if isinstance(x, dict)]
+            updated = False
+            new_password = hash_password(password)
+            for item in users:
+                if normalize_identity(str(item.get("username", ""))) == target:
+                    item.clear()
+                    item.update({
+                        "username": username,
+                        "enabled": bool(enabled),
+                        "password": new_password,
+                    })
+                    updated = True
+                    break
+            if not updated:
+                users.append({
                     "username": username,
                     "enabled": bool(enabled),
                     "password": new_password,
                 })
-                updated = True
-                break
-        if not updated:
-            users.append({
-                "username": username,
-                "enabled": bool(enabled),
-                "password": new_password,
-            })
-        data["version"] = 1
-        data["users"] = users
-        self._write_document(data)
+            data["version"] = 1
+            data["users"] = users
+            self._write_document(data)
 
     def set_enabled(self, username: str, enabled: bool) -> bool:
-        data = self._load_document()
-        target = normalize_identity(username)
-        changed = False
-        for item in data.get("users", []):
-            if isinstance(item, dict) and normalize_identity(str(item.get("username", ""))) == target:
-                item["enabled"] = bool(enabled)
-                changed = True
-                break
-        if changed:
-            self._write_document(data)
-        return changed
+        with self._locked():
+            data = self._load_document()
+            target = normalize_identity(username)
+            changed = False
+            for item in data.get("users", []):
+                if isinstance(item, dict) and normalize_identity(str(item.get("username", ""))) == target:
+                    item["enabled"] = bool(enabled)
+                    changed = True
+                    break
+            if changed:
+                self._write_document(data)
+            return changed
 
     def delete(self, username: str) -> bool:
-        data = self._load_document()
-        target = normalize_identity(username)
-        old = data.get("users", [])
-        users = [
-            item for item in old
-            if not (
-                isinstance(item, dict)
-                and normalize_identity(str(item.get("username", ""))) == target
-            )
-        ]
-        if len(users) == len(old):
-            return False
-        data["users"] = users
-        self._write_document(data)
-        return True
+        with self._locked():
+            data = self._load_document()
+            target = normalize_identity(username)
+            old = data.get("users", [])
+            users = [
+                item for item in old
+                if not (
+                    isinstance(item, dict)
+                    and normalize_identity(str(item.get("username", ""))) == target
+                )
+            ]
+            if len(users) == len(old):
+                return False
+            data["users"] = users
+            self._write_document(data)
+            return True

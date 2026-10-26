@@ -1,98 +1,81 @@
-# VPN Monitor — multi-user server patch v1
+# VPN Monitor — сервер мониторинга
 
-## Логика доступа
+## Доступ
 
-- Администратор берётся из существующих `AUTH_USER` / `AUTH_PASSWORD` в `/etc/vpn-monitor.env` и видит всё.
-- Обычные пользователи хранятся в `/etc/vpn-monitor-users.json`.
-- Пароли обычных пользователей не хранятся открытым текстом: используется `scrypt` + индивидуальная случайная salt.
-- Обычный пользователь видит только группу, имя которой совпадает с его логином без учёта регистра, и только peer из этой группы.
-- Если peer входит в несколько групп, обычному пользователю в поле `groups` возвращается только его разрешённая группа.
-- Если группу переименовать или изменить её состав в WGDashboard, доступ меняется автоматически на следующем обновлении данных; перезапуск не нужен.
-- Если группы с именем пользователя нет, пользователь получает пустой список.
+Администратор задаётся через `AUTH_USER` / `AUTH_PASSWORD` в `/etc/vpn-monitor.env` и видит все группы. Обычный пользователь видит только группу WGDashboard, совпадающую с логином после NFKC/сравнения без учёта регистра. Если группы нет, список клиентов пуст. Сервер фильтрует все Web/Desktop API, а чужой peer возвращает 404.
 
-## Новые API
+## Управление пользователями в Web — 26.10.2026
 
-`GET /api/v1/me`:
+После входа администратором слева доступно «Управление пользователями»:
+- создание с выбором имени из существующих групп или вводом нового имени;
+- смена пароля, разрешение/блокировка входа;
+- удаление с подтверждением;
+- предупреждение об отсутствии одноимённой группы.
 
-```json
-{"username":"Офис","is_admin":false,"group":"Офис"}
-```
+Создание аккаунта не создаёт группу WGDashboard или VPN-клиента. При редактировании пустой пароль сохраняет прежний. Имя не переименовывается: оно определяет область доступа. Администратор из конфигурации защищён от изменения/удаления через этот интерфейс. Права обычного аккаунта не позволяют вызывать API управления даже напрямую.
 
-Все существующие API (`/api/status`, `/api/v1/summary`, `/api/v1/peers`, `/api/v1/groups`, `/api/v1/peers/{id}`) фильтруются на сервере.
+## Хранилище и совместимость CLI
 
-## Установка
+Основная база: `/var/lib/vpn-monitor/users/users.json`, пароли scrypt с индивидуальной salt. Каталог принадлежит сервисному пользователю `vpn-monitor`, режим 0750; база — 0640. Это позволяет веб-службе записывать аккаунты без прав root и без права записи в `/etc`.
 
-Сначала сделайте штатный backup:
+`USERS_FILE` может переопределить путь. На рабочем развёртывании старый `/etc/vpn-monitor-users.json` оставлен ссылкой на новую базу. UserStore разрешает ссылку в канонический путь, поэтому веб и CLI используют одну базу и один lock. Существующие аккаунты и хеши при переносе сохранены.
 
-```bash
-sudo systemctl start vpn-monitor-backup.service
-sudo systemctl status vpn-monitor-backup.service --no-pager
-```
-
-Скопируйте из этого архива `app.py`, `auth_store.py`, `vpn-monitor-user` на сервер, затем:
-
-```bash
-cd /путь/куда/распаковали/vpn-monitor-server-multiuser-v1
-
-sudo install -m 0644 app.py /opt/vpn-monitor/app.py
-sudo install -m 0644 auth_store.py /opt/vpn-monitor/auth_store.py
-sudo install -m 0755 vpn-monitor-user /usr/local/sbin/vpn-monitor-user
-
-sudo vpn-monitor-user init
-sudo systemctl restart vpn-monitor.service
-sudo systemctl status vpn-monitor.service --no-pager
-```
-
-Проверка администратора:
-
-```bash
-curl -u admin http://127.0.0.1/api/v1/me
-curl -u admin http://127.0.0.1/api/v1/summary
-```
-
-`curl -u admin` запросит пароль интерактивно и не оставит его в истории shell.
-
-## Добавление пользователя
-
-Имя пользователя должно совпадать с названием группы WGDashboard. Например:
-
-```bash
-sudo vpn-monitor-user add 'Офис'
-```
-
-Команда дважды запросит пароль.
-
-Проверка:
-
-```bash
-curl -u 'Офис' http://127.0.0.1/api/v1/me
-curl -u 'Офис' http://127.0.0.1/api/v1/groups
-curl -u 'Офис' http://127.0.0.1/api/v1/peers
-```
-
-## Управление пользователями
+Все писатели, включая CLI, используют межпроцессный `flock` и атомарную замену JSON. При запуске CLI от root сохраняются владелец/группа существующей базы. Backend рассчитан на Linux; Windows используется только для изолированных тестов.
 
 ```bash
 sudo vpn-monitor-user list
+sudo vpn-monitor-user add 'Офис'
 sudo vpn-monitor-user passwd 'Офис'
 sudo vpn-monitor-user disable 'Офис'
 sudo vpn-monitor-user enable 'Офис'
 sudo vpn-monitor-user delete 'Офис'
 ```
 
+Пароли CLI вводятся интерактивно.
+
+## API для будущего Windows-интерфейса
+
+Все маршруты требуют Basic-аутентификацию администратора:
+
+| Метод | Маршрут | Назначение |
+| --- | --- | --- |
+| GET | `/api/v1/admin/users` | `items`, существующие `groups`, `csrf_token` |
+| POST | `/api/v1/admin/users` | Создать: `username`, `password`, необязательный `enabled` |
+| PATCH | `/api/v1/admin/users/{username}` | Изменить: необязательные `password` и `enabled` |
+| DELETE | `/api/v1/admin/users/{username}` | Удалить обычный аккаунт |
+
+Для записи передайте `X-VpnMonitor-CSRF` из GET; POST/PATCH — `application/json`. Username в URL кодируется как отдельное значение. Список не содержит паролей, salt и хешей. Ответы управления имеют `Cache-Control: no-store`. При перезапуске текущей однопроцессной службы токен меняется — клиенту нужно обновить список.
+
+Ошибки: 401 — неверная авторизация, 403 — недостаточно прав/защищённый admin/неверный CSRF, 404 — аккаунт не найден, 409 — дубликат, 422 — недопустимые поля, 503 — запись недоступна. Ошибки не отражают пароль или путь базы. Дополнительные поля, включая `is_admin`, отклоняются.
+
+## Установка/перенос существующей базы
+
+Перед заменой кода остановите только `vpn-monitor.service` и сохраните код, env, CLI и старую базу в root-only backup. Создайте `/var/lib/vpn-monitor/users` с владельцем `vpn-monitor:vpn-monitor` и режимом 0750. Перенесите существующую базу целиком, сохранив хеши; не инициализируйте пустой файл поверх существующих аккаунтов. Укажите новый `USERS_FILE`, обновите `app.py`, `auth_store.py`, CLI, HTML и static-файлы. Старый путь можно оставить ссылкой для совместимости. Перезапустите веб-службу и проверьте операции администратора и отказ обычному пользователю. Сам AWG при этом не перезапускается.
+
+Тестовые зависимости `.testdeps`, локальные настройки, отчёты, конфигурации и секреты на сервер не копируются.
+
 ## Backup
 
-Добавьте файл пользователей в существующий backup-скрипт:
+В архив должны входить:
 
 ```text
+opt/vpn-monitor
+etc/vpn-monitor.env
 etc/vpn-monitor-users.json
-```
-
-и модуль/CLI:
-
-```text
-opt/vpn-monitor/auth_store.py
+var/lib/vpn-monitor/users
 usr/local/sbin/vpn-monitor-user
 ```
 
-Ваш backup уже сохраняет `/opt/vpn-monitor`, поэтому `auth_store.py` попадёт туда автоматически; отдельно важно добавить `/etc/vpn-monitor-users.json` и `/usr/local/sbin/vpn-monitor-user`, если CLI ещё не входит в список.
+При архивации базы используется общий lock: `flock -s /var/lib/vpn-monitor/users/users.json.lock tar ...`. Архив содержит и ссылку старого пути, и настоящие данные. Рабочий backup-скрипт обновлён и проверен; штатный restore извлекает весь архив.
+
+## Проверки
+
+```text
+python Server/test_access.py
+python Server/test_users.py
+node --check Server/static/app.js
+node --check Server/static/users.js
+node Server/test_search.cjs
+```
+
+API-тесты используют временную базу без WGDashboard и рабочего VPN. Реальные проверки развёртывания описаны в `docs/WEB_USER_MANAGEMENT_VERIFICATION.md`.

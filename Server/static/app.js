@@ -2,7 +2,7 @@ let peers = [];
 let groups = [];
 let me = {
     username: "—",
-    is_admin: true,
+    is_admin: false,
     group: null
 };
 
@@ -796,6 +796,7 @@ async function start() {
 
     try {
         await loadIdentity();
+        document.getElementById("usersButton").classList.toggle("hidden", !me.is_admin);
         await updateData();
     } catch (error) {
         const box = document.getElementById("error");

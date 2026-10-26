@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, "/opt/vpn-monitor")
-from auth_store import UserStore, normalize_identity  # noqa: E402
+from auth_store import UserStore, normalize_identity, DEFAULT_USERS_FILE  # noqa: E402
 
 ENV_FILE = Path("/etc/vpn-monitor.env")
-USERS_FILE = os.getenv("USERS_FILE", "/etc/vpn-monitor-users.json")
+USERS_FILE = os.getenv("USERS_FILE", DEFAULT_USERS_FILE)
 
 
 def env_admin() -> str:

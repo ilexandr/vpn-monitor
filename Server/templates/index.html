@@ -14,7 +14,7 @@
             document.documentElement.dataset.theme = theme;
         })();
     </script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=20261026">
 </head>
 <body>
 
@@ -67,6 +67,7 @@
         <div class="sidebar-section-title" id="groupsTitle">Группы</div>
         <div id="groups"></div>
 
+        <button id="usersButton" class="sidebar-item hidden" type="button">Управление пользователями</button>
         <div id="restrictedHint" class="restricted-hint hidden">
             Доступ ограничен вашей группой.
         </div>
@@ -147,6 +148,27 @@
     </div>
 </div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20261026"></script>
+
+<dialog id="usersDialog" class="users-dialog" aria-labelledby="usersHeading">
+ <div class="users-heading"><h2 id="usersHeading">Пользователи</h2><button id="usersRefresh" type="button">Обновить</button></div>
+ <p class="users-hint">Пользователь видит группу WGDashboard с тем же именем. Создание аккаунта не создаёт группу или VPN-клиента.</p>
+ <p id="usersError" role="status" class="users-hint"></p>
+ <div class="users-scroll"><table class="users-table"><thead><tr><th>Пользователь</th><th>Доступ</th><th>Состояние</th><th>Действия</th></tr></thead><tbody id="usersRows"></tbody></table></div>
+ <form id="userForm" class="user-form">
+  <h3 id="userFormTitle">Новый пользователь</h3>
+  <label>Имя / группа<input id="userName" list="userGroups" required maxlength="80" autocomplete="off"><datalist id="userGroups"></datalist></label>
+  <label>Пароль<input id="userPassword" type="password" required maxlength="256" autocomplete="new-password"></label>
+  <label class="user-enabled"><input id="userEnabled" type="checkbox" checked> Разрешить вход</label>
+  <div class="user-form-actions"><button id="userSave" type="submit">Создать</button><button id="userReset" type="button">Отмена изменений</button></div>
+ </form>
+ <div class="users-footer"><button id="usersClose" type="button">Закрыть</button></div>
+</dialog>
+<dialog id="userDeleteDialog" class="users-dialog users-confirm" aria-labelledby="deleteHeading">
+ <h2 id="deleteHeading">Удаление пользователя</h2><p id="userDeleteText"></p>
+ <p class="users-hint">Удаляется только учётная запись мониторинга. Группа и VPN-клиенты сохраняются.</p>
+ <div class="user-form-actions"><button id="userDeleteConfirm" type="button">Удалить</button><button id="userDeleteCancel" type="button">Отмена</button></div>
+</dialog>
+<script src="/static/users.js?v=20261026"></script>
 </body>
 </html>
