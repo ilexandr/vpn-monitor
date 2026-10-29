@@ -26,10 +26,11 @@ public sealed class AdminUsersClient : IAdminUsersClient
     {
         if(!Uri.TryCreate(server.Trim().TrimEnd('/')+"/",UriKind.Absolute,out var uri) || uri.Scheme is not ("http" or "https") || uri.UserInfo.Length>0 || uri.Query.Length>0 || uri.Fragment.Length>0)
             throw new ArgumentException("Некорректный адрес сервера.");
-        _http=new HttpClient(handler ?? new SocketsHttpHandler {AllowAutoRedirect=false,PooledConnectionIdleTimeout=TimeSpan.FromSeconds(3)}) {BaseAddress=uri,Timeout=TimeSpan.FromSeconds(12),MaxResponseContentBufferSize=2*1024*1024};
+        _http=new HttpClient(handler ?? CreateHandler()) {BaseAddress=uri,Timeout=TimeSpan.FromSeconds(12),MaxResponseContentBufferSize=2*1024*1024};
         _http.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Basic",Convert.ToBase64String(Encoding.UTF8.GetBytes(username+":"+password)));
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.77");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.78");
     }
+    private static SocketsHttpHandler CreateHandler(){var handler=HttpProxyPolicy.CreateHandler(serverApi:true);handler.AllowAutoRedirect=false;return handler;}
     public async Task<AdminUsersSnapshot> ReadAsync(CancellationToken token)
     {
         using var response=await _http.GetAsync(Endpoint,token);Check(response);

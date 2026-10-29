@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _settings = _settingsService.Load();
+        HttpProxyPolicy.Configure(_settings.HttpProxy);
         InitializeMonitoring();
         ThemeService.Apply(_settings.Theme);
         DataContext = _viewModel;
@@ -223,7 +224,7 @@ public partial class MainWindow : Window
             menu.Items.Add(item);
         }
         Add("Открыть AWG Dash Monitor", ShowFromTray);
-        Add("Обновить", () => _ = RefreshDataAsync());
+        Add("О программе…", () => { ShowFromTray(); About_Click(this, new RoutedEventArgs()); });
         Add("Сетевые интерфейсы", ToggleTrayNetworkPopup);
         Add("Настройки…", () => { ShowFromTray(); Settings_Click(this, new RoutedEventArgs()); });
         menu.Items.Add(new System.Windows.Controls.Separator { Style = (Style)FindResource("ContextSeparatorStyle") });
@@ -750,6 +751,7 @@ public partial class MainWindow : Window
         if (result)
         {
             _settings = _settingsService.Load();
+            HttpProxyPolicy.Configure(_settings.HttpProxy);
             ThemeService.Apply(_settings.Theme);
             _viewModel.SetFavoriteIds(_settings.FavoritePeerIds);
             _viewModel.FavoritesOnly = _settings.FavoritesOnly;

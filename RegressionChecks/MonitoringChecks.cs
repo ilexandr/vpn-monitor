@@ -294,6 +294,7 @@ internal static class MonitoringChecks
                 var menu = (System.Windows.Controls.ContextMenu)typeof(MainWindow).GetMethod("BuildTrayContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(trayWindow, null)!;
                 Require(menu.Items.Count == 6 && menu.Items.OfType<MenuItem>().All(i => ReferenceEquals(i.Style, trayWindow.FindResource("ActionMenuItemStyle"))),
                     "Tray must use the same WPF action menu style as client menus.");
+                Require(menu.Items.OfType<MenuItem>().Any(i=>i.Header?.ToString()=="О программе…") && !menu.Items.OfType<MenuItem>().Any(i=>i.Header?.ToString()=="Обновить"), "Tray must expose About instead of refresh.");
                 menu.Measure(new Size(280, 400)); menu.Arrange(new Rect(0, 0, 280, menu.DesiredSize.Height));
                 Render(menu, "tray-menu-" + theme);
             }

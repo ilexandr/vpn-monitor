@@ -18,7 +18,7 @@ public sealed class ApiClient : IDisposable
         PropertyNameCaseInsensitive = true
     };
 
-    public ApiClient(string serverUrl, string username, string password)
+    public ApiClient(string serverUrl, string username, string password, HttpProxyOptions? proxy = null)
     {
         var normalized = serverUrl.Trim().TrimEnd('/') + "/";
 
@@ -28,11 +28,7 @@ public sealed class ApiClient : IDisposable
             throw new ArgumentException("Некорректный адрес сервера.", nameof(serverUrl));
         }
 
-        _http = new HttpClient(new SocketsHttpHandler
-        {
-            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(3),
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2)
-        })
+        _http = new HttpClient(HttpProxyPolicy.CreateHandler(serverApi:true,options:proxy))
         {
             BaseAddress = baseUri,
             Timeout = Timeout.InfiniteTimeSpan
@@ -40,7 +36,7 @@ public sealed class ApiClient : IDisposable
 
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", token);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.77");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.78");
     }
 
     public Task<MeResponse> GetMeAsync(CancellationToken cancellationToken = default) => GetAsync<MeResponse>("api/v1/me", cancellationToken);

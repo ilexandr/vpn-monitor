@@ -2,6 +2,7 @@ namespace VpnMonitor.Client.Models;
 
 public sealed class ClientSettings
 {
+    public HttpProxyOptions HttpProxy { get; set; } = new();
     public string ServerUrl { get; set; } = "http://10.20.0.1";
     public string Username { get; set; } = "admin";
     public string ProtectedPassword { get; set; } = "";

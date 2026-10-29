@@ -52,6 +52,10 @@ public partial class SettingsWindow : Window
     private void LoadForm(ClientSettings settings)
     {
         ServerUrlBox.Text = settings.ServerUrl;
+        ProxyModeBox.SelectedIndex = settings.HttpProxy?.Mode=="http"?1:0;
+        ProxyAddressBox.Text = settings.HttpProxy?.Address??"";
+        ProxyServerApiBox.IsChecked = settings.HttpProxy?.ForServerApi==true;
+        UpdateProxyControls();
         UsernameBox.Text = settings.Username;
         PasswordBox.Password = _settingsService.UnprotectPassword(settings.ProtectedPassword);
         RefreshSecondsBox.Text = Math.Clamp(settings.RefreshSeconds, 2, 300).ToString();
@@ -222,12 +226,20 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private HttpProxyOptions ReadProxyOptions()
+    {
+        var options=new HttpProxyOptions {Mode=ProxyModeBox.SelectedIndex==1?"http":"direct",Address=ProxyModeBox.SelectedIndex==1?ProxyAddressBox.Text.Trim():"",ForServerApi=ProxyServerApiBox.IsChecked==true};
+        options.Validate();return options with {Address=options.CanonicalAddress};
+    }
+    private void Proxy_Changed(object sender,SelectionChangedEventArgs e)=>UpdateProxyControls();
+    private void UpdateProxyControls(){if(ProxyAddressBox is null||ProxyServerApiBox is null)return;ProxyAddressBox.IsEnabled=ProxyServerApiBox.IsEnabled=ProxyModeBox.SelectedIndex==1;}
     private bool TryReadForm(out string serverUrl, out string username, out string password, out int refreshSeconds)
     {
         serverUrl = ServerUrlBox.Text.Trim().TrimEnd('/');
         username = UsernameBox.Text.Trim();
         password = PasswordBox.Password;
         refreshSeconds = 5;
+        try{ReadProxyOptions();}catch(ArgumentException ex){ThemedMessageBox.Show(this,ex.Message,"Прокси",MessageBoxButton.OK,MessageBoxImage.Warning);return false;}
 
         if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out var uri) ||
             (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
@@ -277,7 +289,7 @@ public partial class SettingsWindow : Window
 
         try
         {
-            using var api = new ApiClient(serverUrl, username, password);
+            using var api = new ApiClient(serverUrl, username, password, ReadProxyOptions());
             var summary = await api.GetSummaryAsync();
             TestStatus.Text = $"Соединение успешно. {summary.Configuration}: Online {summary.Online}/{summary.Total}, групп {summary.Groups}.";
         }
@@ -345,7 +357,7 @@ public partial class SettingsWindow : Window
         {
             if (new FileInfo(dialog.FileName).Length > 2_000_000) throw new ArgumentException("Файл настроек слишком большой.");
             var imported = SettingsTransfer.Import(File.ReadAllText(dialog.FileName));
-            var message = $"Сервер: {imported.ServerUrl}\nПользователь: {imported.Username}\nТема: {imported.Theme}\nДействий: {imported.CustomActions.Count}\n\nНастройки заменят значения формы. Пароль не импортируется. Команды не запускаются.\nИзменения применятся после «Сохранить»; «Отмена» отменит импорт.";
+            var message = $"Сервер: {imported.ServerUrl}\nПользователь: {imported.Username}\nТема: {imported.Theme}\nПрокси: {(imported.HttpProxy.Mode=="http"?imported.HttpProxy.Address:"без прокси")}\nПрокси для API: {(imported.HttpProxy.ForServerApi?"да":"нет")}\nДействий: {imported.CustomActions.Count}\n\nНастройки заменят значения формы. Пароль не импортируется. Команды не запускаются.\nИзменения применятся после «Сохранить»; «Отмена» отменит импорт.";
             if (ThemedMessageBox.Show(this, message, "Предпросмотр импорта", MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
             var sameAccount = string.Equals(imported.ServerUrl.TrimEnd('/'), _settings.ServerUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase) &&
                 imported.Username == _settings.Username;
@@ -429,6 +441,7 @@ public partial class SettingsWindow : Window
         _settings.ActiveCheckSeconds = activeSeconds;
         _settings.ActiveCheckTcpFallback = ActiveCheckTcpFallbackBox.IsChecked == true;
         _settings.ActiveCheckTcpPort = activePort;
+        _settings.HttpProxy = ReadProxyOptions();
         _settings.ServerUrl = serverUrl;
         _settings.Username = username;
         _settings.ProtectedPassword = _settingsService.ProtectPassword(password);

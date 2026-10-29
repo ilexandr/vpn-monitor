@@ -32,7 +32,7 @@ public static class UpdateService
     }
     public static async Task<UpdateRelease?> CheckAsync(CancellationToken cancellation)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20), MaxResponseContentBufferSize = 2*1024*1024 };
+        using var http = new HttpClient(HttpProxyPolicy.CreateHandler()) { Timeout = TimeSpan.FromSeconds(20), MaxResponseContentBufferSize = 2*1024*1024 };
         http.DefaultRequestHeaders.UserAgent.ParseAdd($"VpnMonitor/{CurrentVersion}");
         http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         using var response = await http.GetAsync("https://api.github.com/repos/ilexandr/vpn-monitor/releases/latest", cancellation);
@@ -42,7 +42,7 @@ public static class UpdateService
     }
     public static async Task<UpdateFilePlan> GetFilePlanAsync(UpdateRelease expected, string installRoot, CancellationToken cancellation, HttpMessageHandler? handler = null)
     {
-        using var http = new HttpClient(handler ?? new HttpClientHandler()) { Timeout = TimeSpan.FromSeconds(30), MaxResponseContentBufferSize = 2*1024*1024 };
+        using var http = new HttpClient(handler ?? HttpProxyPolicy.CreateHandler()) { Timeout = TimeSpan.FromSeconds(30), MaxResponseContentBufferSize = 2*1024*1024 };
         http.DefaultRequestHeaders.UserAgent.ParseAdd($"VpnMonitor/{CurrentVersion}");
         var json=await http.GetStringAsync($"https://api.github.com/repos/ilexandr/vpn-monitor/releases/{expected.Id}",cancellation);
         using var document=JsonDocument.Parse(json);var root=document.RootElement;
@@ -69,6 +69,8 @@ public static class UpdateService
         var info = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),"WindowsPowerShell","v1.0","powershell.exe"))
         { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden };
         info.Arguments = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{script}\" -ReleaseId {releaseId}";
+        var proxy=HttpProxyPolicy.Current;
+        if(proxy.Mode=="http")info.Arguments+=$" -ProxyUrl \"{proxy.CanonicalAddress}\"";
         using var process = Process.Start(info);
     }
 }

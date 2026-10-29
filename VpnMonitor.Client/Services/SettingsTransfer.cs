@@ -41,6 +41,8 @@ public static class SettingsTransfer
         }
         ClientActionCatalog.Validate(settings.BuiltinActions);
         MonitoringConfiguration.ValidateLists(settings);
+        if(settings.HttpProxy is null)throw new ArgumentException("Некорректные настройки прокси.");
+        settings.HttpProxy.Validate();
         settings.ProtectedPassword = "";
         return settings;
     }

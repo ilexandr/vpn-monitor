@@ -1,5 +1,13 @@
-﻿param([Parameter(Mandatory=$true)][ValidateRange(1,[long]::MaxValue)][long]$ReleaseId)
+﻿param([Parameter(Mandatory=$true)][ValidateRange(1,[long]::MaxValue)][long]$ReleaseId,[string]$ProxyUrl='')
 $ErrorActionPreference='Stop'
+# Explicit transport policy from the initiating user; never inherit an elevated account's proxy.
+$updateProxy=$null
+if($ProxyUrl){
+ $proxyUri=$null
+ if(![uri]::TryCreate($ProxyUrl,[UriKind]::Absolute,[ref]$proxyUri) -or $proxyUri.Scheme -ne 'http' -or !$proxyUri.Host -or $proxyUri.Port -lt 1 -or $proxyUri.Port -gt 65535 -or $proxyUri.UserInfo -or $proxyUri.AbsolutePath -ne '/' -or $proxyUri.Query -or $proxyUri.Fragment -or $ProxyUrl -match '[\x00-\x1f\x7f]'){throw 'Invalid HTTP proxy address'}
+ $updateProxy=[Net.WebProxy]::new($proxyUri)
+}
+[Net.WebRequest]::DefaultWebProxy=$updateProxy
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $gate=$null;$locked=$false;$stage=$null;$serviceWasRunning=$false;$serviceStopped=$false;$installStarted=$false;$installed=$false
@@ -75,7 +83,7 @@ try{
  $binarySize=(Get-ChildItem (Join-Path $root 'Client') -Recurse -File | Measure-Object Length -Sum).Sum
  if($free -lt ($binarySize*2+$asset.size+104857600)){throw 'Not enough free space for update and rollback copy'}
  $setup=Join-Path $stage $assetName
- $web=[Net.WebClient]::new();$web.Headers['User-Agent']='VpnMonitor-Updater'
+ $web=[Net.WebClient]::new();$web.Proxy=$updateProxy;$web.Headers['User-Agent']='VpnMonitor-Updater'
  try{
   $download=$web.DownloadFileTaskAsync($uri,$setup)
   $deadline=[DateTime]::UtcNow.AddMinutes(15)

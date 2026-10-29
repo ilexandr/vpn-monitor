@@ -25,6 +25,7 @@ internal static class Program
         {
             try
             {
+                if (args.Contains("--proxy-only")) { await ProxyChecks.RunAsync(); exitCode=0; return; }
                 if (args.Contains("--startup-only")) { await StartupChecks.RunAsync(); exitCode=0; return; }
                 if (args.Contains("--live-admin-users")) { await AdminUsersChecks.RunLiveAsync(); exitCode=0; return; }
                 if (args.Contains("--admin-users-only")) { await AdminUsersChecks.RunAsync(); exitCode=0; return; }
@@ -46,6 +47,7 @@ internal static class Program
                 await InterfaceChecks.RunAsync();
                 await MonitoringChecks.RunAsync();
                 await AdminUsersChecks.RunAsync();
+                await ProxyChecks.RunAsync();
                 await StartupChecks.RunAsync();
                 SettingsRecoveryChecks.Run();
                 await DiagnosticChecks.RunAsync();

@@ -63,6 +63,11 @@
                       <PasswordBox x:Name="PasswordBox" Height="34" Margin="0,6,0,14" Padding="8,5" />
                     </StackPanel>
                   </Grid>
+                  <TextBlock Text="Прокси HTTP/HTTPS-запросов" FontWeight="SemiBold" Margin="0,8,0,6"/>
+                  <ComboBox x:Name="ProxyModeBox" SelectionChanged="Proxy_Changed" Margin="0,0,0,8"><ComboBoxItem Content="Без прокси (по умолчанию)"/><ComboBoxItem Content="HTTP-прокси"/></ComboBox>
+                  <TextBox x:Name="ProxyAddressBox" Padding="8,6" Margin="0,0,0,8" ToolTip="Например: http://127.0.0.1:10809. HTTP-прокси без авторизации."/>
+                  <CheckBox x:Name="ProxyServerApiBox" Content="Использовать прокси также для API сервера" Margin="0,0,0,8"/>
+                  <TextBlock Text="Обновления GitHub используют выбранный режим. Системный прокси Windows не используется. HTTP-прокси без авторизации; на VPN-туннель настройка не влияет." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" Margin="0,0,0,16"/>
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="Auto" />
