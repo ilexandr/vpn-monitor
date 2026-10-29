@@ -13,6 +13,8 @@ public partial class AwgManagementWindow : Window
 {
     private readonly Func<string, string, Task<int>> _execute;
     private readonly Func<string, AwgConnectionOptions> _readOptions;
+    private readonly Func<AwgStartupSnapshot> _readStartup;
+    private AwgStartupSnapshot _startup = new(0);
     private readonly Func<(AwgProfileCatalog Catalog, uint State, string Text)> _read;
     private readonly Func<string, string>? _readConfig;
     private readonly Func<string, string, string, Task<int>>? _saveConfig;
@@ -29,8 +31,9 @@ public partial class AwgManagementWindow : Window
     public AwgManagementWindow(Func<string, string, Task<int>> execute,
         Func<(AwgProfileCatalog Catalog, uint State, string Text)>? read = null,
         Func<string, AwgConnectionOptions>? readOptions = null,
-        Func<string, string>? readConfig = null, Func<string, string, string, Task<int>>? saveConfig = null)
+        Func<string, string>? readConfig = null, Func<string, string, string, Task<int>>? saveConfig = null, Func<AwgStartupSnapshot>? readStartup = null)
     {
+        _readStartup = readStartup ?? AwgServiceStartup.Read;
         _execute = execute; _readConfig = readConfig; _saveConfig = saveConfig;
         _readOptions = readOptions ?? (_ => new());
         _read = read ?? (() => { var status = AwgServiceStatus.Read(); return (AwgProfileCatalogReader.Read(), status.State, status.Text); });
@@ -58,6 +61,9 @@ public partial class AwgManagementWindow : Window
                 ProfileList.ItemsSource = _catalog.Profiles;
                 ProfileList.SelectedItem = _catalog.Profiles.FirstOrDefault(p => p.Id == current) ?? _catalog.Profiles.FirstOrDefault(p => p.Id == _catalog.SelectedId);
             }
+            try {_startup=_readStartup();}catch{_startup=new(0);}
+            StartupText.Text=_startup.Text;
+            StartupButton.Content=_startup.Automatic?"Отключить автозапуск":"Включить автозапуск";
             UpdateButtons();
             RefreshProfileDetails();
         }
@@ -65,6 +71,7 @@ public partial class AwgManagementWindow : Window
     }
     private void UpdateButtons()
     {
+        StartupButton.IsEnabled = !_busy && _startup.Mode is 2 or 3 or 4 && (_startup.Automatic || _catalog.SelectedId is not null);
         var connection = _state == 4 ? AwgConnectionState.Read() : null;
         TestBackupButton.IsEnabled = connection is { SupportsManualTest: true, ManualTestAvailable: true, Healthy: true, State: "Connected", IsManualTestActive: false } &&
             ProfileList.SelectedItem is AwgProfileInfo selected && selected.Id == _catalog.SelectedId;
@@ -121,6 +128,18 @@ public partial class AwgManagementWindow : Window
     private async void Command_Click(object sender, RoutedEventArgs e)
     {
         if (_busy || sender is not Button { Tag: string action }) return;
+        if (action == "startup")
+        {
+            try {
+                var startup=_readStartup();if(startup.Mode is not (2 or 3 or 4))return;
+                var automatic=!startup.Automatic;
+                if(automatic&&_catalog.SelectedId is null)return;
+                var startupMessage=automatic?"Запускать выбранный общий туннель после загрузки Windows, без входа пользователей? Текущее соединение не прерывается.":"Отключить запуск туннеля после загрузки Windows? Текущее соединение продолжит работу; подключать туннель можно вручную.";
+                if(ThemedMessageBox.Show(this,startupMessage,"Автозапуск общего туннеля",MessageBoxButton.OKCancel,MessageBoxImage.Question,MessageBoxResult.Cancel,automatic?"Включить":"Отключить")==MessageBoxResult.OK)
+                    await ExecuteCommandAsync(action,automatic?"auto":"manual");
+            }catch{ResultText.Text="Не удалось прочитать режим запуска службы.";}
+            return;
+        }
         if (action == "connection-history") { OwnedWindowBehavior.Attach(new AwgConnectionHistoryWindow(), this).ShowDialog(); return; }
         if (action == "test-backup")
         {
@@ -177,13 +196,14 @@ public partial class AwgManagementWindow : Window
     private async Task ExecuteOperationAsync(string action, string argument, Func<Task<int>>? operation = null)
     {
         if (_busy) return;
-        _busy = true; Commands.IsEnabled = ProfileList.IsEnabled = false; ResultText.Text = "Выполнение…";
+        _busy = true; StartupButton.IsEnabled = false; Commands.IsEnabled = ProfileList.IsEnabled = false; ResultText.Text = "Выполнение…";
         try
         {
             var code = await (operation is null ? _execute(action, argument) : operation());
             ResultText.Text = code switch
             {
                 0 => action == "test-backup" ? "Запрос передан службе. Ход и результат — в статусе и истории связи." : "Готово.", 12 => "Сначала остановите туннель; профиль не выбран или служба занята.",
+                21 => "Не удалось настроить автозапуск. Проверьте выбранный профиль и состояние службы; изменение могло примениться частично.",
                 13 => "Сначала выберите другой профиль.", 14 => "Конфликт маршрутов: подключение не запущено.",
                 15 => "Файл занят, повторите позже.", 16 => "Проверьте конфигурацию и совместимость с настройками связи. Изменения не сохранены.", 20 => "Проверка сейчас недоступна: нужен работающий основной Endpoint, заданный резерв и свободный бюджет попыток.", 19 => "Не удалось восстановить активную копию профиля. Не запускайте службу вручную; выберите профиль заново в менеджере.", 18 => "Профиль изменён в другом окне. Откройте конфигурацию заново; изменения не сохранены.", 17 => "Служба не достигла нужного состояния. Проверьте журнал.",
                 _ => $"Запрос не выполнен (код {code})."

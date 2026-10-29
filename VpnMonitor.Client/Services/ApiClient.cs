@@ -40,7 +40,7 @@ public sealed class ApiClient : IDisposable
 
         var token = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{username}:{password}"));
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", token);
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.76");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.77");
     }
 
     public Task<MeResponse> GetMeAsync(CancellationToken cancellationToken = default) => GetAsync<MeResponse>("api/v1/me", cancellationToken);

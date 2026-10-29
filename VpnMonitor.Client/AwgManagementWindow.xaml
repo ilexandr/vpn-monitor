@@ -17,7 +17,11 @@
   <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><Grid Margin="22,18">
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
-    <StackPanel><TextBlock x:Name="ServiceText" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="SelectedText" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/></StackPanel>
+    <StackPanel><TextBlock x:Name="ServiceText" FontSize="16" FontWeight="SemiBold"/><TextBlock x:Name="SelectedText" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+     <WrapPanel Margin="0,10,0,0"><TextBlock x:Name="StartupText" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,6"/>
+      <Button x:Name="StartupButton" Content="Включить автозапуск" Tag="startup" Click="Command_Click" Padding="10,5" Margin="0,0,0,6"/></WrapPanel>
+     <TextBlock Text="Автозапуск действует для всего компьютера, без входа пользователей. Ручное отключение сохраняется до следующего подключения или перезагрузки." TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}" FontSize="11"/>
+    </StackPanel>
    </Border>
    <TextBlock Grid.Row="1" Margin="0,12" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
     Text="Подключение и отключение затрагивают всех пользователей компьютера. Закрытие этого окна не отключает VPN. Для выбора другого профиля сначала остановите туннель."/>

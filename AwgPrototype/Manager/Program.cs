@@ -35,7 +35,7 @@ internal static class Program
             app.Run(window);
             return 0;
         }
-        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt" or "configure" or "test-backup")) return 2;
+        if(args.Length != 2 || args[0] is not ("import" or "select" or "remove" or "start" or "stop" or "adopt" or "configure" or "test-backup" or "startup" or "startup-setup")) return 2;
         if(!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator)) return 10;
         try
         {
@@ -45,6 +45,14 @@ internal static class Program
             var state = AwgServiceStatus.Read().State;
             switch(args[0])
             {
+                case "startup":
+                    if(args[1] is not ("auto" or "manual"))return 2;
+                    StartupPolicyStore.Set(Data,args[1]=="auto",()=>ValidateStartupProfile(catalog),AwgServiceStartup.Configure);
+                    AwgServiceStartup.ConfigureRecovery();return 0;
+                case "startup-setup":
+                    if(args[1] is not ("new" or "existing" or "-"))return 2;
+                    StartupPolicyStore.Initialize(Data,catalog.SelectedId is not null,AwgServiceStartup.Read,()=>ValidateStartupProfile(catalog),AwgServiceStartup.Configure,args[1]=="new");
+                    AwgServiceStartup.ConfigureRecovery();return 0;
                 case "test-backup":
                 {
                     var profile = Find(catalog,args[1]);
@@ -95,6 +103,7 @@ internal static class Program
                     if(catalog.SelectedId == profile.Id)
                     {
                         if(state!=1)return 12;
+                        StartupPolicyStore.Set(Data,false,()=>{},AwgServiceStartup.Configure);
                         catalog.SelectedId=null;
                         File.Delete(Path.Combine(Data,"profile.dpapi"));
                         File.Delete(Path.Combine(Data,"connection-policy.json"));
@@ -127,8 +136,19 @@ internal static class Program
             }
             return 2;
         }
+        catch when(args[0] is "startup" or "startup-setup") { return 21; }
         catch(IOException) { return 15; }
         catch { return 16; }
+    }
+    private static void ValidateStartupProfile(AwgProfileCatalog catalog)
+    {
+        if(catalog.SelectedId is null)throw new ArgumentException();
+        var profile=Find(catalog,catalog.SelectedId);
+        var config=MachineProfile.Read(ProfilePath(profile.Id));ValidateConfig(config);ReadOptions(profile.Id).Validate(config);
+        // The SCM uses the protected active copy, not a per-user selected file.
+        var active=MachineProfile.Read(Path.Combine(Data,"profile.dpapi"));
+        if(!string.Equals(config,active,StringComparison.Ordinal))throw new InvalidOperationException();
+        ValidateConfig(active);
     }
     private static string ReadConfig(string id) => MachineProfile.Read(ProfilePath(id));
     private static int SaveConfig(string id, string original, string config)

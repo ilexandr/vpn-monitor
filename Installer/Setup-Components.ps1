@@ -116,7 +116,9 @@ try{
   [IO.File]::WriteAllText($catalog,'{"Version":1,"SelectedId":null,"Profiles":[]}')
  }
  $binary='"'+(Join-Path $serviceRoot 'AwgPrototype.Host.exe')+'" --run-service "'+(Join-Path $dataRoot 'profile.dpapi')+'"'
+ $startupKind='new'
  if(Get-Service $serviceName -ErrorAction SilentlyContinue){
+  $startupKind='existing'
   $existing=Get-CimInstance Win32_Service -Filter "Name='VpnMonitor.AwgPrototype'"
   $change=Invoke-CimMethod -InputObject $existing -MethodName Change -Arguments @{PathName=$binary}
   if($change.ReturnValue -ne 0){throw ('Cannot update service location: '+$change.ReturnValue)}
@@ -128,6 +130,9 @@ try{
  if($LASTEXITCODE -ne 0){throw 'Cannot configure service SID'}
  & sc.exe sdset $serviceName 'D:P(A;;GA;;;SY)(A;;GA;;;BA)(A;;LC;;;AU)' | Out-Null
  if($LASTEXITCODE -ne 0){throw 'Cannot configure service permissions'}
+ # Migrate pre-0.1.77 profiles once; later upgrades preserve the chosen SCM start mode.
+ $startup=Start-Process -FilePath (Join-Path $serviceRoot 'AwgPrototype.Manager.exe') -ArgumentList @('startup-setup',$startupKind) -WindowStyle Hidden -Wait -PassThru
+ if($startup.ExitCode -ne 0){throw ('Cannot configure AWG startup/recovery: '+$startup.ExitCode)}
  # Preserve an existing key: New-Item -Force can delete it while setup holds it open.
  $baseKey=[Microsoft.Win32.RegistryKey]::OpenBaseKey([Microsoft.Win32.RegistryHive]::LocalMachine,[Microsoft.Win32.RegistryView]::Registry64)
  try{
