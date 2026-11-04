@@ -362,7 +362,7 @@ func repairVpnMonitorInterface(config *conf.Config, nativeTun *tun.NativeTun) {
 		}
 	}
 }
-func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[string]guardRoute, repairInterface func()) func() {
+func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[string]guardRoute, repairInterface func(), startupBackup bool) func() {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	started := time.Now()
@@ -373,7 +373,11 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 				r.remove()
 			}
 		}()
-		decision := guardDecision{}
+		decision := guardDecision{backup: startupBackup}
+		if startupBackup {
+			decision.lastAction = started
+		}
+		var lastSaved guardResume
 		var lastAction time.Time
 		var lastReceiveAt time.Time
 		var previousRx uint64
@@ -448,7 +452,11 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 			} else if !p.Enabled {
 				state = "Disabled"
 			} else if healthy {
-				state = "Connected"
+				if decision.backup {
+					state = "Backup"
+				} else {
+					state = "Connected"
+				}
 			}
 			if pending != nil {
 				if !manualActive && target != nil && len(config.Peers) == 1 && now.Sub(started) >= 30*time.Second && decision.beginManual(now, healthy, p, pending.Id) {
@@ -503,6 +511,9 @@ func startVpnMonitorGuard(dev *device.Device, config *conf.Config, owned map[str
 				healthy = false
 				lastReceiveAt = time.Time{}
 				previousHandshake, previousRx = guardTraffic(dev)
+			}
+			if len(config.Peers) == 1 {
+				rememberGuardEndpoint(activeGuardProfile, primary, p, &decision, healthy, now, &lastSaved)
 			}
 			writeGuardStatus(state, tcp, ping, healthy, handshake, started, activeEndpoint, decision.manualStatus(), decision.manual.requestID, strconv.FormatBool(len(config.Peers) == 1 && target != nil && now.Sub(started) >= 30*time.Second && decision.canManual(now, healthy, p)))
 			eventKey := state + "|" + activeEndpoint + "|" + decision.manualStatus()

@@ -147,7 +147,7 @@ public partial class AwgManagementWindow : Window
             }catch{ResultText.Text="Не удалось прочитать режим запуска службы.";}
             return;
         }
-        if (action == "connection-history") { OwnedWindowBehavior.Attach(new AwgConnectionHistoryWindow(), this).ShowDialog(); return; }
+        if (action == "connection-history") { OwnedWindowBehavior.Attach(new AwgConnectionHistoryWindow(selectedProfileId:(ProfileList.SelectedItem as AwgProfileInfo)?.Id), this).ShowDialog(); return; }
         if (action == "test-backup")
         {
             if (!TestBackupButton.IsEnabled || ProfileList.SelectedItem is not AwgProfileInfo testProfile) return;

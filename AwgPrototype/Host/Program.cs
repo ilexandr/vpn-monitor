@@ -63,6 +63,11 @@ internal static class Program
                 return 3;
             }
             Stage("routes-and-scripts-checked");
+            if(serviceMode) {
+                var data=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),"VpnMonitor","AwgPrototype");
+                ProfileContext.Write(data,Path.Combine(Path.GetDirectoryName(data)!,"AwgStatus","profiles.json"),config);
+                Stage("profile-context-written");
+            }
             var dll = Path.Combine(AppContext.BaseDirectory, "tunnel.dll");
             if (!SetDefaultDllDirectories(0x00000800 | 0x00000400)) throw new InvalidOperationException();
             if (AddDllDirectory(AppContext.BaseDirectory) == IntPtr.Zero) throw new InvalidOperationException();

@@ -28,7 +28,7 @@ public sealed class AdminUsersClient : IAdminUsersClient
             throw new ArgumentException("Некорректный адрес сервера.");
         _http=new HttpClient(handler ?? CreateHandler()) {BaseAddress=uri,Timeout=TimeSpan.FromSeconds(12),MaxResponseContentBufferSize=2*1024*1024};
         _http.DefaultRequestHeaders.Authorization=new AuthenticationHeaderValue("Basic",Convert.ToBase64String(Encoding.UTF8.GetBytes(username+":"+password)));
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.79");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("VpnMonitor.Client/0.1.80");
     }
     private static SocketsHttpHandler CreateHandler(){var handler=HttpProxyPolicy.CreateHandler(serverApi:true);handler.AllowAutoRedirect=false;return handler;}
     public async Task<AdminUsersSnapshot> ReadAsync(CancellationToken token)

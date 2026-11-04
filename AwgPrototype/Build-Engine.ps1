@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $prototypeRoot=$PSScriptRoot
 $engineRoot=Join-Path $prototypeRoot 'engine'
 $toolsRoot=Join-Path $prototypeRoot 'toolchain'
@@ -15,7 +15,7 @@ $env:PATH=$compiler.DirectoryName+';'+(Join-Path $goRoot 'bin')+';'+$env:PATH
 $out=Join-Path $prototypeRoot 'bin'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 # Reapply our small, tracked overlay to the pinned upstream checkout.
-foreach($name in @('vpnmonitor_validate.go','vpnmonitor_guard.go','vpnmonitor_guard_policy.go','vpnmonitor_guard_policy_test.go','vpnmonitor_guard_events.go','vpnmonitor_guard_manual_test.go')){
+foreach($name in @('vpnmonitor_validate.go','vpnmonitor_guard.go','vpnmonitor_guard_policy.go','vpnmonitor_guard_policy_test.go','vpnmonitor_guard_events.go','vpnmonitor_guard_manual_test.go','vpnmonitor_guard_resume.go','vpnmonitor_guard_resume_test.go')){
  Copy-Item -LiteralPath (Join-Path $prototypeRoot ('engine-patches\'+$name)) -Destination (Join-Path $engineRoot $name) -Force
 }
 $serviceFile=Join-Path $engineRoot 'service.go'
@@ -27,9 +27,13 @@ if(!$serviceSource.Contains('stopConnectionGuard')){
  $serviceSource=$serviceSource.Replace('log.Println("Startup complete")',"log.Println(`"Startup complete`")`n`tstopConnectionGuard = startVpnMonitorGuard(dev, config, endpointRoutes)")
  [IO.File]::WriteAllText($serviceFile,$serviceSource,[Text.UTF8Encoding]::new($false))
 }
+# Select a remembered endpoint before DNS conversion/device Up; preserve the configured primary.
+$serviceSource=[IO.File]::ReadAllText($serviceFile)
+$serviceSource=$serviceSource.Replace('uapiConf, err := config.ToUAPI()', 'uapiConf, startupBackup, err := guardStartupUAPI(config)')
+[IO.File]::WriteAllText($serviceFile,$serviceSource,[Text.UTF8Encoding]::new($false))
 # Restore missing entries without flushing an active Wintun interface.
 $serviceSource=[IO.File]::ReadAllText($serviceFile)
-$serviceSource=[regex]::Replace($serviceSource,'(?m)^\s*stopConnectionGuard = startVpnMonitorGuard[^\r\n]+',"`tstopConnectionGuard = startVpnMonitorGuard(dev, config, endpointRoutes, func() { repairVpnMonitorInterface(config, nativeTun) })")
+$serviceSource=[regex]::Replace($serviceSource,'(?m)^\s*stopConnectionGuard = startVpnMonitorGuard[^\r\n]+',"`tstopConnectionGuard = startVpnMonitorGuard(dev, config, endpointRoutes, func() { repairVpnMonitorInterface(config, nativeTun) }, startupBackup)")
 [IO.File]::WriteAllText($serviceFile,$serviceSource,[Text.UTF8Encoding]::new($false))
 Push-Location $engineRoot
 try {

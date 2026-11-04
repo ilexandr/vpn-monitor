@@ -10,6 +10,7 @@
     <Compile Include="../AwgPrototype/Manager/StartupPolicyStore.cs" Link="StartupPolicyStore.cs" />
     <Compile Include="../AwgPrototype/Manager/ProfileEditorStore.cs" Link="ProfileEditorStore.cs" />
     <Compile Include="../AwgPrototype/Manager/ProfileProtector.cs" Link="ProfileProtector.cs" />
+    <Compile Include="../AwgPrototype/Host/ProfileContext.cs" Link="ProfileContext.cs" />
     <Compile Include="../AwgPrototype/Host/MachineProfile.cs" Link="MachineProfile.cs" />
     <ProjectReference Include="../VpnMonitor.Client/VpnMonitor.Client.csproj" />
   </ItemGroup>

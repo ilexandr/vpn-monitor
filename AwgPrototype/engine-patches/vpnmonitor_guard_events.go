@@ -48,12 +48,14 @@ func consumeGuardRequest() *guardRequest {
 }
 
 type guardEvent struct {
-	At        time.Time
-	State     string
-	Endpoint  string
-	Reason    string
-	RequestId string
-	ProcessId int
+	ProfileId   string
+	ProfileName string
+	At          time.Time
+	State       string
+	Endpoint    string
+	Reason      string
+	RequestId   string
+	ProcessId   int
 }
 
 func appendGuardEvent(events []guardEvent, event guardEvent) []guardEvent {
@@ -68,17 +70,33 @@ func recordGuardEvent(state, endpoint, reason, requestID string) {
 	if e != nil {
 		return
 	}
-	path := filepath.Join(root, "connection-events.json")
-	var events []guardEvent
-	if info, e := os.Stat(path); e == nil && info.Size() <= 256*1024 {
-		if data, e := os.ReadFile(path); e == nil {
-			_ = json.Unmarshal(data, &events)
-		}
+	event := guardEvent{At: time.Now(), State: state, Endpoint: endpoint, Reason: reason, RequestId: requestID, ProcessId: os.Getpid(), ProfileId: activeGuardProfile.ProfileId, ProfileName: activeGuardProfile.ProfileName}
+	storeGuardEvent(root, event)
+}
+func storeGuardEvent(root string, event guardEvent) {
+	paths := []string{filepath.Join(root, "connection-events.json")}
+	if validGuardHex(event.ProfileId, 32) {
+		paths = append(paths, filepath.Join(root, "connection-events-"+event.ProfileId+".json"))
 	}
-	events = appendGuardEvent(events, guardEvent{time.Now(), state, endpoint, reason, requestID, os.Getpid()})
-	if data, e := json.Marshal(events); e == nil {
-		if os.WriteFile(path+".new", data, 0600) == nil {
-			_ = os.Rename(path+".new", path)
+	for index, path := range paths {
+		var events []guardEvent
+		if !readGuardJSON(path, &events, 256*1024) {
+			events = nil
+		}
+		if index > 0 {
+			kept := events[:0]
+			for _, item := range events {
+				if item.ProfileId == event.ProfileId {
+					kept = append(kept, item)
+				}
+			}
+			events = kept
+		}
+		events = appendGuardEvent(events, event)
+		if data, e := json.Marshal(events); e == nil {
+			if os.WriteFile(path+".new", data, 0600) == nil {
+				_ = os.Rename(path+".new", path)
+			}
 		}
 	}
 }

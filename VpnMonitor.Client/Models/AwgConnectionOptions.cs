@@ -12,6 +12,7 @@ public sealed class AwgConnectionOptions
     public int FailureSeconds { get; set; } = 30;
     public int CooldownSeconds { get; set; } = 60;
     public string BackupEndpoint { get; set; } = "";
+    public bool RememberWorkingEndpoint { get; set; } = true;
     public bool ReturnToPrimary { get; set; }
     public int PrimaryRetrySeconds { get; set; } = 300;
     public void Validate(string? config = null)

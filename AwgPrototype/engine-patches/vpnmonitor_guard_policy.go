@@ -5,20 +5,21 @@ import (
 )
 
 type guardPolicy struct {
-	Enabled             bool
-	PreferPhysical      bool
-	ProbeHost           string
-	ProbePort           int
-	IntervalSeconds     int
-	FailureSeconds      int
-	CooldownSeconds     int
-	BackupEndpoint      string
-	ReturnToPrimary     bool
-	PrimaryRetrySeconds int
+	RememberWorkingEndpoint bool
+	Enabled                 bool
+	PreferPhysical          bool
+	ProbeHost               string
+	ProbePort               int
+	IntervalSeconds         int
+	FailureSeconds          int
+	CooldownSeconds         int
+	BackupEndpoint          string
+	ReturnToPrimary         bool
+	PrimaryRetrySeconds     int
 }
 
 func defaultGuardPolicy() guardPolicy {
-	return guardPolicy{Enabled: true, PreferPhysical: true, ProbePort: 80, IntervalSeconds: 10, FailureSeconds: 30, CooldownSeconds: 60, PrimaryRetrySeconds: 300}
+	return guardPolicy{RememberWorkingEndpoint: true, Enabled: true, PreferPhysical: true, ProbePort: 80, IntervalSeconds: 10, FailureSeconds: 30, CooldownSeconds: 60, PrimaryRetrySeconds: 300}
 }
 func (p guardPolicy) valid() bool {
 	return p.ProbePort >= 1 && p.ProbePort <= 65535 && p.IntervalSeconds >= 5 && p.IntervalSeconds <= 300 &&

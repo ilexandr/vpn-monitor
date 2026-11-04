@@ -24,6 +24,8 @@ public sealed class AwgConnectionSettingsWindow : Window
         panel.Children.Add(new TextBlock { Text = "Контроль общего соединения", FontSize = 21, FontWeight = FontWeights.SemiBold });
         panel.Children.Add(new TextBlock { Text = "Основной Endpoint берётся из профиля. Настройки общие для всех Windows/RDP-сеансов и применяются при следующем подключении. Ручное отключение не запускает восстановление.", TextWrapping = TextWrapping.Wrap, Margin = new(0, 10, 0, 14) });
         var enabled = new CheckBox { Content = "Переподключаться при подтверждённом сбое", IsChecked = options.Enabled, Margin = new(0, 0, 0, 10) }; panel.Children.Add(enabled);
+        var remember = new CheckBox { Content="После перезапуска начинать с последнего подтверждённого Endpoint", IsChecked=options.RememberWorkingEndpoint, Margin=new(0,0,0,10) }; panel.Children.Add(remember);
+        panel.Children.Add(new TextBlock {Text="Сохраняется при включённом контроле соединения отдельно для профиля. При изменении конфигурации или адресов выбор сбрасывается. Возврат к основному выполняется по политике ниже; временный тест резерва не меняет сохранённый адрес.",TextWrapping=TextWrapping.Wrap,Margin=new(0,0,0,12)});
         var physical = new CheckBox { Content = "Направлять Endpoint через физическую сеть (обход других VPN)", IsChecked = options.PreferPhysical, Margin = new(0, 0, 0, 10) }; panel.Children.Add(physical);
         TextBox Field(string label, string value)
         {
@@ -44,7 +46,7 @@ public sealed class AwgConnectionSettingsWindow : Window
             try
             {
                 int Number(TextBox b) => int.TryParse(b.Text, out var n) ? n : throw new ArgumentException("Параметры времени и порт должны быть числами.");
-                var value = new AwgConnectionOptions { Enabled = enabled.IsChecked == true, PreferPhysical = physical.IsChecked == true,
+                var value = new AwgConnectionOptions { Enabled = enabled.IsChecked == true, RememberWorkingEndpoint=remember.IsChecked==true, PreferPhysical = physical.IsChecked == true,
                     BackupEndpoint = backup.Text.Trim(), ProbeHost = host.Text.Trim(), ProbePort = Number(port), IntervalSeconds = Number(interval),
                     FailureSeconds = Number(failure), CooldownSeconds = Number(cooldown), ReturnToPrimary = failback.IsChecked == true, PrimaryRetrySeconds = Number(retry) };
                 value.Validate(); Options = value; DialogResult = true;

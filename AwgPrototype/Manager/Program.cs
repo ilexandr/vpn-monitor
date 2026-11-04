@@ -72,6 +72,7 @@ internal static class Program
                     var request = JsonSerializer.Deserialize<AwgConnectionRequest>(args[1]) ?? throw new ArgumentException();
                     var profile = Find(catalog, request.ProfileId);
                     request.Options.Validate(MachineProfile.Read(ProfilePath(profile.Id)));
+                    if(!request.Options.RememberWorkingEndpoint)File.Delete(Path.Combine(Data,"connection-last-"+profile.Id+".json"));
                     WriteAtomic(Path.Combine(Data, profile.Id + ".connection.json"), JsonSerializer.Serialize(request.Options));
                     if(catalog.SelectedId == profile.Id) WriteAtomic(Path.Combine(Data,"connection-policy.json"), JsonSerializer.Serialize(request.Options));
                     return 0;
@@ -108,6 +109,7 @@ internal static class Program
                         File.Delete(Path.Combine(Data,"profile.dpapi"));
                         File.Delete(Path.Combine(Data,"connection-policy.json"));
                     }
+                    File.Delete(Path.Combine(Data,"connection-last-"+profile.Id+".json"));
                     File.Delete(ProfilePath(profile.Id));
                     File.Delete(Path.Combine(Data,profile.Id+".connection.json"));
                     catalog.Profiles.Remove(profile); Save(catalog); return 0;
