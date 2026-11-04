@@ -43,6 +43,7 @@ public sealed class SavedClientView
     public string? Group { get; set; }
     public string Filter { get; set; } = "all";
     public bool FavoritesOnly { get; set; }
+    public bool NotificationsOnly { get; set; }
     public string SortMember { get; set; } = "IsOnline";
     public bool SortDescending { get; set; } = true;
     public bool Status { get; set; } = true;

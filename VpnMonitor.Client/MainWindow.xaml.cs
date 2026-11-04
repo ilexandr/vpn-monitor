@@ -122,6 +122,8 @@ public partial class MainWindow : Window
         _viewModel.Filter = _settings.Filter;
         _viewModel.SelectedGroup = _settings.SelectedGroup;
         _viewModel.FavoritesOnly = _settings.FavoritesOnly;
+        _viewModel.NotificationsOnly = _settings.NotificationsOnly;
+        _viewModel.SetNotificationIds(_settings.StatusNotificationPeerIds);
         _viewModel.SetFavoriteIds(_settings.FavoritePeerIds);
         _viewModel.ApplySort(_settings.SortMember, _settings.SortDescending);
         UpdateFilterButtons();
@@ -755,6 +757,8 @@ public partial class MainWindow : Window
             ThemeService.Apply(_settings.Theme);
             _viewModel.SetFavoriteIds(_settings.FavoritePeerIds);
             _viewModel.FavoritesOnly = _settings.FavoritesOnly;
+            _viewModel.NotificationsOnly = _settings.NotificationsOnly;
+            _viewModel.SetNotificationIds(_settings.StatusNotificationPeerIds);
             ApplyColumnVisibility();
         }
 
@@ -780,8 +784,10 @@ public partial class MainWindow : Window
 
         _viewModel.SelectedGroup = null;
         _viewModel.FavoritesOnly = false;
+        _viewModel.NotificationsOnly = false;
         _settings.SelectedGroup = null;
         _settings.FavoritesOnly = false;
+        _settings.NotificationsOnly = false;
         SaveSettings();
         UpdateGroupVisuals();
     }
@@ -796,14 +802,26 @@ public partial class MainWindow : Window
             ? _viewModel.RestrictedGroup
             : null;
         _viewModel.FavoritesOnly = true;
+        _viewModel.NotificationsOnly = false;
         _settings.SelectedGroup = _viewModel.IsRestrictedUser
             ? _viewModel.RestrictedGroup
             : null;
         _settings.FavoritesOnly = true;
+        _settings.NotificationsOnly = false;
         SaveSettings();
         UpdateGroupVisuals();
     }
 
+    private void NotificationClients_Click(object sender,RoutedEventArgs e)
+    {
+        _suppressGroupSelection=true;GroupsList.SelectedItem=null;_suppressGroupSelection=false;
+        _viewModel.SelectedGroup=_viewModel.IsRestrictedUser?_viewModel.RestrictedGroup:null;
+        _viewModel.NotificationsOnly=true;
+        _settings.SelectedGroup=_viewModel.SelectedGroup;_settings.FavoritesOnly=false;_settings.NotificationsOnly=true;
+        SaveSettings();UpdateGroupVisuals();
+    }
+    private void ClearSearch_Click(object sender,RoutedEventArgs e){_viewModel.SearchText="";SearchBox.Focus();}
+    private void Search_KeyDown(object sender,System.Windows.Input.KeyEventArgs e){if(e.Key==Key.Escape&&_viewModel.SearchText.Length>0){e.Handled=true;ClearSearch_Click(sender,e);}}
     private void GroupsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressGroupSelection)
@@ -820,8 +838,10 @@ public partial class MainWindow : Window
 
             _viewModel.SelectedGroup = group.Name;
             _viewModel.FavoritesOnly = false;
+            _viewModel.NotificationsOnly = false;
             _settings.SelectedGroup = group.Name;
             _settings.FavoritesOnly = false;
+            _settings.NotificationsOnly = false;
             SaveSettings();
             UpdateGroupVisuals();
         }
@@ -832,13 +852,13 @@ public partial class MainWindow : Window
         _suppressGroupSelection = true;
 
         if (_viewModel.IsRestrictedUser &&
-            !_viewModel.FavoritesOnly &&
+            !_viewModel.FavoritesOnly && !_viewModel.NotificationsOnly &&
             !string.IsNullOrWhiteSpace(_viewModel.RestrictedGroup))
         {
             _viewModel.SelectedGroup = _viewModel.RestrictedGroup;
         }
 
-        if (_viewModel.FavoritesOnly || string.IsNullOrWhiteSpace(_viewModel.SelectedGroup))
+        if (_viewModel.FavoritesOnly || _viewModel.NotificationsOnly || string.IsNullOrWhiteSpace(_viewModel.SelectedGroup))
         {
             GroupsList.SelectedItem = null;
         }
@@ -877,7 +897,7 @@ public partial class MainWindow : Window
         if (restricted && !string.IsNullOrWhiteSpace(_viewModel.RestrictedGroup))
         {
             _settings.SelectedGroup = _viewModel.RestrictedGroup;
-            if (!_viewModel.FavoritesOnly)
+            if (!_viewModel.FavoritesOnly && !_viewModel.NotificationsOnly)
                 _viewModel.SelectedGroup = _viewModel.RestrictedGroup;
         }
     }
@@ -885,7 +905,7 @@ public partial class MainWindow : Window
     private void UpdateGroupVisuals()
     {
         var allActive = !_viewModel.IsRestrictedUser &&
-                        !_viewModel.FavoritesOnly &&
+                        !_viewModel.FavoritesOnly && !_viewModel.NotificationsOnly &&
                         string.IsNullOrWhiteSpace(_viewModel.SelectedGroup);
         var favoritesActive = _viewModel.FavoritesOnly;
 
@@ -902,6 +922,8 @@ public partial class MainWindow : Window
         FavoriteClientsButton.Foreground = favoritesActive
             ? GetBrush("SidebarSelectedTextBrush")
             : GetBrush("TextBrush");
+        NotificationClientsButton.Background=_viewModel.NotificationsOnly?GetBrush("SidebarSelectedBrush"):WpfBrushes.Transparent;
+        NotificationClientsButton.Foreground=_viewModel.NotificationsOnly?GetBrush("SidebarSelectedTextBrush"):GetBrush("TextBrush");
     }
 
     private void Filter_Click(object sender, RoutedEventArgs e)
@@ -990,6 +1012,7 @@ public partial class MainWindow : Window
             ShowStatusHint($"🔕 {peer.Name}: уведомления отключены");
         }
 
+        _viewModel.SetNotificationIds(_settings.StatusNotificationPeerIds);
         SaveSettings();
     }
 

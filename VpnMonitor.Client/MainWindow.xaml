@@ -287,6 +287,12 @@
                                 <TextBlock Grid.Column="1" Text="{Binding FavoriteCount, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
                             </Grid>
                         </Button>
+                        <Button x:Name="NotificationClientsButton" Style="{StaticResource SidebarButtonStyle}" Click="NotificationClients_Click" Margin="0,2,0,0" ToolTip="Клиенты, отмеченные для уведомлений. Тихие часы и общий выключатель уведомлений не меняют этот список.">
+                            <Grid Margin="7,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="С уведомлениями" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                <TextBlock Grid.Column="1" Text="{Binding NotificationCount, Mode=OneWay}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Button>
                         <TextBlock x:Name="GroupsSectionTitle" Text="ГРУППЫ" Foreground="{DynamicResource MutedBrush}" FontSize="11" FontWeight="Bold" Margin="10,17,0,7"/>
                     </StackPanel>
 
@@ -365,7 +371,7 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBox Grid.Column="0" x:Name="SearchBox" Height="32" Padding="9,5"
+                        <TextBox Grid.Column="0" x:Name="SearchBox" Height="32" Padding="9,5,35,5" PreviewKeyDown="Search_KeyDown"
                                  BorderThickness="0"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="Поиск по имени, IP, endpoint, заметке и группе. Слова через пробел: должны найтись все. Например: Prestig BH."/>
@@ -375,6 +381,9 @@
                                 <Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
                             </Style></TextBlock.Style>
                         </TextBlock>
+                        <Button Grid.Column="0" x:Name="ClearSearchButton" Content="×" Width="26" Height="26" FontSize="18" Padding="0" BorderThickness="0" Background="Transparent" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,3,0" Click="ClearSearch_Click" ToolTip="Очистить поиск (Esc)" AutomationProperties.Name="Очистить поиск">
+                            <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Setter Property="Visibility" Value="Visible"/><Style.Triggers><DataTrigger Binding="{Binding SearchText}" Value=""><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                        </Button>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="7,0,0,0">
                             <Border Background="{DynamicResource FilterGroupBackgroundBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}"

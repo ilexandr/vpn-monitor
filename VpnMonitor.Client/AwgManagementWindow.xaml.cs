@@ -14,6 +14,7 @@ public partial class AwgManagementWindow : Window
     private readonly Func<string, string, Task<int>> _execute;
     private readonly Func<string, AwgConnectionOptions> _readOptions;
     private readonly Func<AwgStartupSnapshot> _readStartup;
+    private readonly Func<AwgConnectionState?> _readConnection;
     private AwgStartupSnapshot _startup = new(0);
     private readonly Func<(AwgProfileCatalog Catalog, uint State, string Text)> _read;
     private readonly Func<string, string>? _readConfig;
@@ -31,9 +32,10 @@ public partial class AwgManagementWindow : Window
     public AwgManagementWindow(Func<string, string, Task<int>> execute,
         Func<(AwgProfileCatalog Catalog, uint State, string Text)>? read = null,
         Func<string, AwgConnectionOptions>? readOptions = null,
-        Func<string, string>? readConfig = null, Func<string, string, string, Task<int>>? saveConfig = null, Func<AwgStartupSnapshot>? readStartup = null)
+        Func<string, string>? readConfig = null, Func<string, string, string, Task<int>>? saveConfig = null, Func<AwgStartupSnapshot>? readStartup = null, Func<AwgConnectionState?>? readConnection = null)
     {
         _readStartup = readStartup ?? AwgServiceStartup.Read;
+        _readConnection = readConnection ?? AwgConnectionState.Read;
         _execute = execute; _readConfig = readConfig; _saveConfig = saveConfig;
         _readOptions = readOptions ?? (_ => new());
         _read = read ?? (() => { var status = AwgServiceStatus.Read(); return (AwgProfileCatalogReader.Read(), status.State, status.Text); });
@@ -52,7 +54,7 @@ public partial class AwgManagementWindow : Window
         {
             var current = (ProfileList.SelectedItem as AwgProfileInfo)?.Id;
             var snapshot = _read(); _catalog = snapshot.Catalog; _state = snapshot.State;
-            var connection = AwgConnectionState.Read();
+            var connection = _readConnection();
             ServiceText.Text = snapshot.Text + (snapshot.State == 4 && connection is not null ? " · " + connection.Text : "");
             ServiceText.ToolTip = connection?.Details;
             SelectedText.Text = "Выбран для подключения: " + (_catalog.Profiles.FirstOrDefault(p => p.Id == _catalog.SelectedId)?.Name ?? "не выбран");
@@ -72,9 +74,14 @@ public partial class AwgManagementWindow : Window
     private void UpdateButtons()
     {
         StartupButton.IsEnabled = !_busy && _startup.Mode is 2 or 3 or 4 && (_startup.Automatic || _catalog.SelectedId is not null);
-        var connection = _state == 4 ? AwgConnectionState.Read() : null;
-        TestBackupButton.IsEnabled = connection is { SupportsManualTest: true, ManualTestAvailable: true, Healthy: true, State: "Connected", IsManualTestActive: false } &&
-            ProfileList.SelectedItem is AwgProfileInfo selected && selected.Id == _catalog.SelectedId;
+        var connection = _state == 4 ? _readConnection() : null;
+        var selectedProfile=ProfileList.SelectedItem as AwgProfileInfo;
+        AwgConnectionOptions? options=null;
+        if(selectedProfile is not null)try{options=_readOptions(selectedProfile.Id);}catch{}
+        var availability=AwgBackupTestAvailability.Evaluate(_state,selectedProfile?.Id,_catalog.SelectedId,options,connection,DateTimeOffset.Now);
+        TestBackupButton.IsEnabled=availability.Available;
+        TestBackupButton.ToolTip=availability.Explanation;
+        BackupTestHint.Text="Проверка резерва: "+availability.Explanation;
         EditProfileButton.IsEnabled = _readConfig is not null && ProfileList.SelectedItem is AwgProfileInfo;
         ConnectionSettingsButton.IsEnabled = _state == 1 && ProfileList.SelectedItem is AwgProfileInfo;
         SelectButton.IsEnabled = _state == 1 && ProfileList.SelectedItem is AwgProfileInfo;
@@ -96,7 +103,7 @@ public partial class AwgManagementWindow : Window
             BackupEndpointText.Text = "Резервный Endpoint: " + (options.BackupEndpoint.Length == 0 ? "не задан" : options.BackupEndpoint) +
                 (!options.Enabled && options.BackupEndpoint.Length > 0 ? " · автовосстановление отключено" : "");
             if (_backup != options.BackupEndpoint) { _backup = options.BackupEndpoint; _pingAt = default; _pingText = "Узел: ещё не проверялся."; }
-            var connection = profile.Id == _catalog.SelectedId && _state == 4 ? AwgConnectionState.Read() : null;
+            var connection = profile.Id == _catalog.SelectedId && _state == 4 ? _readConnection() : null;
             BackupAvailabilityText.Text = options.BackupEndpoint.Length == 0 ? "Задайте резерв в «Связь и резерв…»." :
                 AwgEndpointHealth.Describe(options.BackupEndpoint, connection) + "\n" + _pingText + (connection?.ManualText is { Length: > 0 } manual ? "\n" + manual : "");
             if (_backup.Length > 0 && !_probing && DateTimeOffset.Now - _pingAt > TimeSpan.FromSeconds(30)) _ = ProbeBackupAsync(_backup);

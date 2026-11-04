@@ -31,6 +31,7 @@ public sealed class ClientSettings
 
     public List<string> FavoritePeerIds { get; set; } = [];
     public bool FavoritesOnly { get; set; }
+    public bool NotificationsOnly { get; set; }
 
     public List<string> StatusNotificationPeerIds { get; set; } = [];
     public bool StatusNotificationsEnabled { get; set; } = true;

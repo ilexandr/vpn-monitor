@@ -27,6 +27,9 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
     private bool _sortDescending = true;
     private readonly HashSet<string> _favoritePeerIds = new(StringComparer.Ordinal);
     private bool _favoritesOnly;
+    private bool _notificationsOnly;
+    private readonly HashSet<string> _notificationPeerIds = new(StringComparer.Ordinal);
+    private int _notificationCount;
     private int _favoriteCount;
     private string _currentUsername = "—";
     private bool _isAdmin = true;
@@ -97,11 +100,21 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         get => _favoritesOnly;
         set
         {
-            if (SetField(ref _favoritesOnly, value))
-                PeersView.Refresh();
+            if (SetField(ref _favoritesOnly, value)) {if(value)NotificationsOnly=false;PeersView.Refresh();}
         }
     }
 
+    public bool NotificationsOnly
+    {
+        get=>_notificationsOnly;
+        set {if(SetField(ref _notificationsOnly,value)){if(value)FavoritesOnly=false;PeersView.Refresh();}}
+    }
+    public int NotificationCount {get=>_notificationCount;private set=>SetField(ref _notificationCount,value);}
+    public void SetNotificationIds(IEnumerable<string>? ids)
+    {
+        _notificationPeerIds.Clear();foreach(var id in ids??[])if(!string.IsNullOrWhiteSpace(id))_notificationPeerIds.Add(id);
+        NotificationCount=Peers.Count(p=>_notificationPeerIds.Contains(p.Id));PeersView.Refresh();
+    }
     public int FavoriteCount
     {
         get => _favoriteCount;
@@ -206,6 +219,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
         OnlineCount = 0;
         OfflineCount = 0;
         FavoriteCount = 0;
+        NotificationCount = 0;
         ConfigurationName = "—";
         LastUpdated = "—";
         CurrentUsername = string.IsNullOrWhiteSpace(username) ? "—" : username.Trim();
@@ -301,6 +315,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
                 else Peers.Add(peer);
 
             FavoriteCount = newPeers.Count(p => p.IsFavorite);
+            NotificationCount = newPeers.Count(p=>_notificationPeerIds.Contains(p.Id));
 
             Groups.Clear();
             foreach (var group in groupResponse.Items
@@ -325,7 +340,7 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
             }
 
             if (IsRestrictedUser &&
-                !FavoritesOnly &&
+                !FavoritesOnly && !NotificationsOnly &&
                 !string.IsNullOrWhiteSpace(RestrictedGroup))
             {
                 SelectedGroup = RestrictedGroup;
@@ -417,6 +432,8 @@ public sealed class MainViewModel : INotifyPropertyChanged, IDisposable
 
         if (Filter == "offline" && peer.IsOnline)
             return false;
+
+        if(NotificationsOnly && !_notificationPeerIds.Contains(peer.Id))return false;
 
         if (FavoritesOnly && !peer.IsFavorite)
             return false;
