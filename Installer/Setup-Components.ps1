@@ -1,8 +1,10 @@
 param(
- [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','PrepareRemove','Remove')][string]$Phase,
+ [Parameter(Mandatory=$true)][ValidateSet('Preflight','Install','PrepareInstall','RestoreInstall','PrepareRemove','Remove')][string]$Phase,
  [Parameter(Mandatory=$true)][string]$Root,
  [string]$DiagnosticPath,
- [string]$SetupSource
+ [string]$SetupSource,
+ [ValidatePattern('^[a-f0-9]{32}$')][string]$SessionId,
+ [int]$SetupPid
 )
 $ErrorActionPreference='Stop'
 $serviceName='VpnMonitor.AwgPrototype'
@@ -18,6 +20,13 @@ $previous=[IO.Path]::GetFullPath($previous).TrimEnd('\')
 $serviceRoot=Join-Path $expected 'Client'
 $dataRoot=Join-Path $env:ProgramData 'VpnMonitor\AwgPrototype'
 $publicRoot=Join-Path $env:ProgramData 'VpnMonitor\AwgStatus'
+$session=$null
+function Write-SetupSession([string]$phase){
+ $session.Phase=$phase
+ $path=Join-Path $publicRoot ('update-'+$SessionId+'.json')
+ [IO.File]::WriteAllText(($path+'.tmp'),($session | ConvertTo-Json -Depth 4),[Text.UTF8Encoding]::new($false))
+ Move-Item -LiteralPath ($path+'.tmp') -Destination $path -Force
+}
 function Assert-NoReparse([string]$path){
  $current=$path
  while($current){
@@ -65,9 +74,39 @@ try{
   if($existing.StartName -ne 'LocalSystem' -or $existing.PathName -notin $accepted){throw 'Existing service configuration differs; refusing replacement'}
  }
  Assert-NoReparse $expected;Assert-NoReparse $dataRoot;Assert-NoReparse $publicRoot
- if($Phase -eq 'PrepareRemove'){
+ if($Phase -eq 'RestoreInstall'){
+  if(!$SessionId){throw 'Missing setup session'}
+  $path=Join-Path $publicRoot ('update-'+$SessionId+'.json')
+  if(!(Test-Path -LiteralPath $path)){exit 0}
+  $session=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+  if($session.Id -ne $SessionId -or $session.WorkerPid -ne $SetupPid){throw 'Setup session mismatch'}
+  if($session.Phase -in @('Completed','Failed')){exit 0}
+  try{
+   . (Join-Path $PSScriptRoot 'Service-Recovery.ps1')
+   Restore-MonitorTunnel ([bool]$session.ServiceWasRunning) $existing.PathName (Join-Path $dataRoot ('setup-'+$SessionId+'.jsonl'))
+   Write-SetupSession 'Completed'
+  }catch{Write-SetupSession 'Failed';throw}
+  exit 0
+ }
+ if($Phase -in @('PrepareRemove','PrepareInstall')){
+  if($Phase -eq 'PrepareInstall'){
+   if(!$SessionId -or $SetupPid -le 0){throw 'Missing setup session identity'}
+   Protect-Directory (Join-Path $env:ProgramData 'VpnMonitor') $false
+   Protect-Directory $dataRoot $false
+   Protect-Directory $publicRoot $true
+   $sessionPath=Join-Path $publicRoot ('update-'+$SessionId+'.json')
+   if(Test-Path -LiteralPath $sessionPath){
+    $session=Get-Content -LiteralPath $sessionPath -Raw | ConvertFrom-Json
+    if($session.Id -ne $SessionId -or $session.WorkerPid -ne $SetupPid -or $session.Phase -ne 'Preparing'){throw 'Setup session cannot be reused'}
+   }else{
+    $running=(Get-Service -Name $serviceName -ErrorAction SilentlyContinue)
+    if($running -and $running.Status -notin @('Running','Stopped')){throw 'Wait until the tunnel finishes changing state'}
+    $session=@{Id=$SessionId;Phase='Preparing';Message='Standalone setup';WorkerPid=$SetupPid;InstallerPid=$SetupPid;ServiceWasRunning=[bool]($running -and $running.Status -eq 'Running')}
+    Write-SetupSession 'Preparing'
+   }
+  }
   $processes=@(Get-CimInstance Win32_Process | Where-Object {
-   $_.ExecutablePath -and $_.ExecutablePath.StartsWith($expected+'\',[StringComparison]::OrdinalIgnoreCase) -and
+   $_.ExecutablePath -and ($_.ExecutablePath.StartsWith($expected+'\',[StringComparison]::OrdinalIgnoreCase) -or $_.ExecutablePath.StartsWith($previous+'\',[StringComparison]::OrdinalIgnoreCase)) -and
    $_.Name -in @('VpnMonitor.Client.exe','AwgPrototype.Manager.exe')
   })
   foreach($process in $processes){
@@ -77,7 +116,7 @@ try{
     $pipe.Connect(10000)
     $writer=[IO.StreamWriter]::new($pipe);$writer.AutoFlush=$true
     $reader=[IO.StreamReader]::new($pipe)
-    $writer.WriteLine('remove|'+[Guid]::NewGuid().ToString('N'))
+    if($Phase -eq 'PrepareInstall'){$writer.WriteLine($SessionId)}else{$writer.WriteLine('remove|'+[Guid]::NewGuid().ToString('N'))}
     $ack=$reader.ReadLineAsync()
     if(!$ack.Wait(15000) -or $ack.Result -ne 'ready'){throw 'Cannot prepare application for uninstall'}
    }finally{$pipe.Dispose()}

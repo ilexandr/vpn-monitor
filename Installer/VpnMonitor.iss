@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.80"
+ #define AppVersion "0.1.81"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -33,6 +33,7 @@ SolidCompression=yes
 WizardStyle=modern
 CloseApplications=no
 RestartApplications=no
+SetupMutex=Global\VpnMonitor.Setup
 UninstallDisplayIcon={app}\Client\VpnMonitor.Client.exe
 SetupIconFile=..\VpnMonitor.Client\Assets\AWG_Monitor.ico
 
@@ -48,6 +49,7 @@ Source: "Setup-Components.ps1"; Flags: dontcopy
 Source: "Update-Application.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Resume-AfterUpdate.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
 Source: "Service-Recovery.ps1"; DestDir: "{app}\Setup"; Flags: ignoreversion
+Source: "Service-Recovery.ps1"; Flags: dontcopy
 
 [InstallDelete]
 #include LegacyCleanup
@@ -70,6 +72,12 @@ Name: "{commonprograms}\AWG Dash Monitor\Удалить AWG Dash Monitor"; Filen
 [Code]
 var ComponentError: String;
     ComponentInstallFailed: Boolean;
+    SetupSessionId: String;
+    SetupPrepared: Boolean;
+    SetupAttempt: Integer;
+
+function GetCurrentProcessId: Integer;
+  external 'GetCurrentProcessId@kernel32.dll stdcall';
 
 function RunComponents(ScriptPath, Phase: String): Boolean;
 var Code: Integer;
@@ -79,7 +87,7 @@ begin
   DiagnosticPath := ExpandConstant('{tmp}\vpnmonitor-component-error.txt');
   DeleteFile(DiagnosticPath);
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '" -SetupSource "' + ExpandConstant('{srcexe}') + '"',
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '" -SetupSource "' + ExpandConstant('{srcexe}') + '"' + SetupSessionId,
     '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
   ComponentError := '';
   if not Result then begin
@@ -91,21 +99,50 @@ begin
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var PreparationError: String;
 begin
   ExtractTemporaryFile('Setup-Components.ps1');
-  if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'Preflight') then
-    Result := 'Проверка установки: ' + ComponentError
+  ExtractTemporaryFile('Service-Recovery.ps1');
+  if SetupSessionId = '' then begin
+    SetupAttempt := SetupAttempt + 1;
+    SetupSessionId := ' -SessionId ' + Copy(GetSHA256OfString(ExpandConstant('{tmp}') + ExpandConstant('{srcexe}') + IntToStr(SetupAttempt)), 1, 32) + ' -SetupPid ' + IntToStr(GetCurrentProcessId);
+  end;
+  SetupPrepared := True;
+  if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'PrepareInstall') then
+  begin
+    PreparationError := ComponentError;
+    if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'RestoreInstall') then
+      PreparationError := PreparationError + #13#10 + 'Восстановление: ' + ComponentError;
+    SetupPrepared := False;
+    SetupSessionId := '';
+    Result := 'Проверка установки: ' + PreparationError;
+  end
   else Result := '';
+end;
+
+procedure DeinitializeSetup;
+begin
+  if SetupPrepared then
+    if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'RestoreInstall') then
+      SuppressibleMsgBox('Не удалось восстановить туннель: ' + ComponentError, mbError, MB_OK, IDOK);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then
+  if CurStep = ssPostInstall then begin
     if not RunComponents(ExpandConstant('{app}\Setup\Setup-Components.ps1'), 'Install') then
     begin
       ComponentInstallFailed := True;
       RaiseException('Не удалось настроить компоненты службы. Проверьте журнал установки; профили пользователей сохранены.');
     end;
+    if SetupPrepared then begin
+      if not RunComponents(ExpandConstant('{tmp}\Setup-Components.ps1'), 'RestoreInstall') then begin
+        ComponentInstallFailed := True;
+        RaiseException('Установка завершена, но не удалось восстановить туннель: ' + ComponentError);
+      end;
+      SetupPrepared := False;
+    end;
+  end;
 end;
 
 function GetCustomSetupExitCode: Integer;
