@@ -4,7 +4,8 @@ param(
  [string]$DiagnosticPath,
  [string]$SetupSource,
  [ValidatePattern('^[a-f0-9]{32}$')][string]$SessionId,
- [int]$SetupPid
+ [int]$SetupPid,
+ [string]$LaunchStatePath
 )
 $ErrorActionPreference='Stop'
 $serviceName='VpnMonitor.AwgPrototype'
@@ -101,9 +102,11 @@ try{
    }else{
     $running=(Get-Service -Name $serviceName -ErrorAction SilentlyContinue)
     if($running -and $running.Status -notin @('Running','Stopped')){throw 'Wait until the tunnel finishes changing state'}
-    $session=@{Id=$SessionId;Phase='Preparing';Message='Standalone setup';WorkerPid=$SetupPid;InstallerPid=$SetupPid;ServiceWasRunning=[bool]($running -and $running.Status -eq 'Running')}
+    $session=@{Id=$SessionId;Phase='Preparing';Message='Standalone setup';WorkerPid=$SetupPid;InstallerPid=$SetupPid;ClientSessions=@();ServiceWasRunning=[bool]($running -and $running.Status -eq 'Running')}
     Write-SetupSession 'Preparing'
    }
+   $setupSession=(Get-Process -Id $SetupPid -ErrorAction Stop).SessionId
+   if($LaunchStatePath){[IO.File]::WriteAllText($LaunchStatePath,('[Launch]'+[Environment]::NewLine+'RestartClient='+[int]($setupSession -in $session.ClientSessions)),[Text.Encoding]::ASCII)}
   }
   $processes=@(Get-CimInstance Win32_Process | Where-Object {
    $_.ExecutablePath -and ($_.ExecutablePath.StartsWith($expected+'\',[StringComparison]::OrdinalIgnoreCase) -or $_.ExecutablePath.StartsWith($previous+'\',[StringComparison]::OrdinalIgnoreCase)) -and
@@ -119,6 +122,11 @@ try{
     if($Phase -eq 'PrepareInstall'){$writer.WriteLine($SessionId)}else{$writer.WriteLine('remove|'+[Guid]::NewGuid().ToString('N'))}
     $ack=$reader.ReadLineAsync()
     if(!$ack.Wait(15000) -or $ack.Result -ne 'ready'){throw 'Cannot prepare application for uninstall'}
+    if($Phase -eq 'PrepareInstall' -and $process.Name -eq 'VpnMonitor.Client.exe'){
+     $session.ClientSessions=@($session.ClientSessions)+@($process.SessionId) | Select-Object -Unique
+     Write-SetupSession 'Preparing'
+     if($LaunchStatePath -and $process.SessionId -eq $setupSession){[IO.File]::WriteAllText($LaunchStatePath,('[Launch]'+[Environment]::NewLine+'RestartClient=1'),[Text.Encoding]::ASCII)}
+    }
    }finally{$pipe.Dispose()}
    $old=Get-Process -Id $process.ProcessId -ErrorAction SilentlyContinue
    if($old -and !$old.WaitForExit(20000)){throw 'Application is busy; uninstall cancelled'}

@@ -1,5 +1,5 @@
 #ifndef AppVersion
- #define AppVersion "0.1.81"
+ #define AppVersion "0.1.82"
 #endif
 #ifndef StageDir
  #define StageDir "..\artifacts\installer\stage"
@@ -62,7 +62,7 @@ Type: dirifempty; Name: "{commonprograms}\VPN Monitor"
 Root: HKLM; Subkey: "Software\VpnMonitor"; Flags: uninsdeletekey
 
 [Run]
-Filename: "{app}\Client\VpnMonitor.Client.exe"; Description: "Запустить AWG Dash Monitor"; Flags: nowait postinstall skipifsilent runasoriginaluser
+Filename: "{app}\Client\VpnMonitor.Client.exe"; Description: "Запустить AWG Dash Monitor"; Flags: nowait postinstall skipifsilent runasoriginaluser; Check: OfferClientLaunch
 
 [Icons]
 Name: "{commonprograms}\AWG Dash Monitor\AWG Dash Monitor"; Filename: "{app}\Client\VpnMonitor.Client.exe"
@@ -79,6 +79,11 @@ var ComponentError: String;
 function GetCurrentProcessId: Integer;
   external 'GetCurrentProcessId@kernel32.dll stdcall';
 
+function OfferClientLaunch: Boolean;
+begin
+  Result := GetIniInt('Launch', 'RestartClient', 0, ExpandConstant('{tmp}\vpnmonitor-launch.ini')) = 0;
+end;
+
 function RunComponents(ScriptPath, Phase: String): Boolean;
 var Code: Integer;
     DiagnosticPath: String;
@@ -87,7 +92,7 @@ begin
   DiagnosticPath := ExpandConstant('{tmp}\vpnmonitor-component-error.txt');
   DeleteFile(DiagnosticPath);
   Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '" -SetupSource "' + ExpandConstant('{srcexe}') + '"' + SetupSessionId,
+    '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' + ScriptPath + '" -Phase ' + Phase + ' -Root "' + ExpandConstant('{app}') + '" -DiagnosticPath "' + DiagnosticPath + '" -SetupSource "' + ExpandConstant('{srcexe}') + '" -LaunchStatePath "' + ExpandConstant('{tmp}\vpnmonitor-launch.ini') + '"' + SetupSessionId,
     '', SW_HIDE, ewWaitUntilTerminated, Code) and (Code = 0);
   ComponentError := '';
   if not Result then begin

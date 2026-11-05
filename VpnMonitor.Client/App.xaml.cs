@@ -23,6 +23,7 @@ public partial class App : System.Windows.Application
     public static string ClientLogPath => LogPath;
 
     private UpdateParticipant? _updateParticipant;
+    private FileStream? _instanceLock;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,6 +34,19 @@ public partial class App : System.Windows.Application
 
         try
         {
+            Directory.CreateDirectory(LogDirectory);
+            try
+            {
+                // Per-user and per-session: other RDP sessions keep their own client.
+                var session = System.Diagnostics.Process.GetCurrentProcess().SessionId;
+                _instanceLock = new FileStream(Path.Combine(LogDirectory, $"instance-{session}.lock"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException ex) when ((ex.HResult & 0xffff) is 32 or 33)
+            {
+                Log("Client already running in this Windows session.");
+                Shutdown();
+                return;
+            }
             Log("Application starting.");
             base.OnStartup(e);
 
@@ -57,6 +71,7 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         _updateParticipant?.Dispose();
+        _instanceLock?.Dispose();
         base.OnExit(e);
     }
 
