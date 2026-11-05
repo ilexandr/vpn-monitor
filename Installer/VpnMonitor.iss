@@ -81,7 +81,7 @@ function GetCurrentProcessId: Integer;
 
 function OfferClientLaunch: Boolean;
 begin
-  Result := GetIniInt('Launch', 'RestartClient', 0, ExpandConstant('{tmp}\vpnmonitor-launch.ini')) = 0;
+  Result := GetIniInt('Launch', 'RestartClient', 0, 0, 1, ExpandConstant('{tmp}\vpnmonitor-launch.ini')) = 0;
 end;
 
 function RunComponents(ScriptPath, Phase: String): Boolean;
